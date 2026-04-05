@@ -21,7 +21,7 @@ BAD is a [BMad Method](https://docs.bmad-method.org/) module that automates your
 ## Installation
 
 ```bash
-npx bmad-method install --custom-content https://github.com/stephenleo/bmad-autonomous-development
+npx skills add https://github.com/stephenleo/bmad-autonomous-development
 ```
 
 Then run setup in your project:
