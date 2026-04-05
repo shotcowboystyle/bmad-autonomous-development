@@ -50,7 +50,7 @@ Once your epics and stories are planned, BAD takes over:
 
 1. *(`MODEL_STANDARD` subagent)* Builds a dependency graph from your sprint backlog — maps story dependencies, syncs GitHub PR status, and identifies what's ready to work on
 2. Picks ready stories from the graph, respecting epic ordering and dependencies
-3. Runs up to `MAX_PARALLEL_STORIES` stories simultaneously, each through a sequential 4-step pipeline. **Every step runs in a dedicated subagent with a fresh context window**, keeping the coordinator lean and each agent fully focused on its single task:
+3. Runs up to `MAX_PARALLEL_STORIES` stories simultaneously — each in its own isolated git worktree — each through a sequential 4-step pipeline. **Every step runs in a dedicated subagent with a fresh context window**, keeping the coordinator lean and each agent fully focused on its single task:
    - **Step 1** *(`MODEL_STANDARD` subagent)* — `bmad-create-story`: generates the story spec
    - **Step 2** *(`MODEL_STANDARD` subagent)* — `bmad-dev-story`: implements the code
    - **Step 3** *(`MODEL_QUALITY` subagent)* — `bmad-code-review`: reviews and fixes the implementation
@@ -65,7 +65,7 @@ BAD is configured at install time (`/bad setup`) and stores settings in `_bmad/b
 | Variable | Config Key | Default | Description |
 |---|---|---|---|
 | `MAX_PARALLEL_STORIES` | `max_parallel_stories` | `3` | Stories to run per batch |
-| `WORKTREE_BASE_PATH` | `worktree_base_path` | `.worktrees` | Git worktree directory (relative to repo root) |
+| `WORKTREE_BASE_PATH` | `worktree_base_path` | `.worktrees` | Base directory for per-story git worktrees (relative to repo root) |
 | `MODEL_STANDARD` | `model_standard` | `sonnet` | Model for create, dev, and PR steps |
 | `MODEL_QUALITY` | `model_quality` | `opus` | Model for code review step |
 | `AUTO_PR_MERGE` | `auto_pr_merge` | `false` | Auto-merge PRs sequentially after each batch |
