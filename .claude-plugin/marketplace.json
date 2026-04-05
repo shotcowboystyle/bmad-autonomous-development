@@ -1,19 +1,33 @@
 {
-  "name": "my-module",
-  "owner": { "name": "Your Name" },
+  "name": "bmad-bad",
+  "owner": { "name": "stephenleo" },
   "license": "MIT",
-  "homepage": "https://github.com/your-org/my-module",
-  "repository": "https://github.com/your-org/my-module",
-  "keywords": ["bmad"],
+  "homepage": "https://github.com/stephenleo/bmad-autonomous-development",
+  "repository": "https://github.com/stephenleo/bmad-autonomous-development",
+  "keywords": [
+    "bmad",
+    "bmad-method",
+    "autonomous development",
+    "agent swarm",
+    "subagent",
+    "parallel development",
+    "agentic",
+    "orchestration",
+    "sprint automation",
+    "story implementation",
+    "pull request automation",
+    "ci-cd",
+    "ai coding"
+  ],
   "plugins": [
     {
-      "name": "my-module",
+      "name": "bmad-bad",
       "source": "./",
-      "description": "TODO: What your module does in one sentence.",
+      "description": "Autonomous development orchestrator for the BMad Method. Runs fully autonomous parallel multi-agent pipelines through the full story lifecycle (create → dev → review → PR) driven by your sprint backlog and dependency graph.",
       "version": "1.0.0",
-      "author": { "name": "Your Name" },
+      "author": { "name": "Marie Stephen Leo" },
       "skills": [
-        "./skills/my-skill"
+        "./skills/bad"
       ]
     }
   ]

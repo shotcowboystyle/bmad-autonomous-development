@@ -1,85 +1,95 @@
-# BMad Module Template
+# BAD — BMad Autonomous Development
 
-A minimal template for creating [BMad Method](https://docs.bmad-method.org/) modules. Fork this repo or use it as a GitHub template to start building your own module.
+> 🤖 Autonomous development orchestrator for the BMad Method. Runs fully autonomous parallel multi-agent pipelines through the full story lifecycle (create → dev → review → PR) driven by your sprint backlog and dependency graph.
 
-## Quick Start
+## What It Does
 
-1. Click **Use this template** on GitHub (or fork the repo)
-2. Rename `skills/my-skill/` to your skill name
-3. Edit `skills/my-skill/SKILL.md` with your skill's instructions
-4. Update `.claude-plugin/marketplace.json` with your module info
-5. Update `LICENSE` with your name and year
-6. Replace this README with what your module does
+BAD is a [BMad Method](https://docs.bmad-method.org/) module that automates your entire sprint execution. A lightweight coordinator orchestrates the pipeline — it never reads files or writes code itself. **Every unit of work is delegated to a dedicated subagent with a fresh context window**, keeping each agent fully focused on its single task.
+
+Once your epics and stories are planned, BAD takes over:
+
+1. *(`MODEL_STANDARD` subagent)* Builds a dependency graph from your sprint backlog — maps story dependencies, syncs GitHub PR status, and identifies what's ready to work on
+2. Picks ready stories from the graph, respecting epic ordering and dependencies
+3. Runs up to `MAX_PARALLEL_STORIES` stories simultaneously, each through a sequential 4-step pipeline:
+   - **Step 1** *(`MODEL_STANDARD` subagent)* — `bmad-create-story`: generates the story spec
+   - **Step 2** *(`MODEL_STANDARD` subagent)* — `bmad-dev-story`: implements the code
+   - **Step 3** *(`MODEL_QUALITY` subagent)* — `bmad-code-review`: reviews and fixes the implementation
+   - **Step 4** *(`MODEL_STANDARD` subagent)* — commit, push, open PR, monitor CI, fix any failing checks, resolve code review comments, and resolve merge conflicts
+4. *(`MODEL_STANDARD` subagent)* Optionally auto-merges batch PRs sequentially (lowest story number first), resolving any conflicts
+5. Waits, then loops back for the next batch — until the entire sprint is done
+
+## Requirements
+
+- [BMad Method](https://docs.bmad-method.org/) installed in your project
+- A sprint plan with epics, stories, and `sprint-status.yaml`
+- Git + GitHub CLI (`gh`) installed and authenticated:
+  1. `brew install gh`
+  2. `gh auth login`
+  3. Add to your `.zshrc` so BAD's subagents can connect to GitHub:
+     ```bash
+     export GITHUB_PERSONAL_ACCESS_TOKEN=$(gh auth token)
+     ```
+
+## Installation
+
+```bash
+npx bmad-method install --custom-content https://github.com/stephenleo/bmad-autonomous-development
+```
+
+Then run setup in your project:
+
+```
+/bad setup
+```
+
+## Usage
+
+```
+/bad
+```
+
+BAD can also be triggered naturally: *"run BAD"*, *"kick off the sprint"*, *"automate the sprint"*, *"start autonomous development"*, *"run the pipeline"*, *"start the dev pipeline"*
+
+Run with optional overrides:
+
+```
+/bad MAX_PARALLEL_STORIES=2 AUTO_PR_MERGE=true MODEL_STANDARD=opus
+```
+
+### Configuration
+
+BAD is configured at install time (`/bad setup`) and stores settings in `_bmad/bad/config.yaml`. All values can be overridden at runtime with `KEY=VALUE` args.
+
+| Variable | Default | Description |
+|---|---|---|
+| `MAX_PARALLEL_STORIES` | `3` | Stories to run per batch |
+| `WORKTREE_BASE_PATH` | `.worktrees` | Git worktree directory |
+| `MODEL_STANDARD` | `sonnet` | Model for create, dev, PR steps |
+| `MODEL_QUALITY` | `opus` | Model for code review |
+| `AUTO_PR_MERGE` | `false` | Auto-merge PRs after each batch |
+| `RUN_CI_LOCALLY` | `false` | Run CI locally instead of GitHub Actions |
+| `WAIT_TIMER_SECONDS` | `3600` | Wait between batches |
+| `RETRO_TIMER_SECONDS` | `600` | Delay before auto-retrospective |
+
+## Agent Harness Support
+
+BAD is harness-agnostic. Setup detects your installed harnesses (Claude Code, Cursor, GitHub Copilot, etc.) and configures platform-specific settings (models, rate limit thresholds, timer support) accordingly.
 
 ## Structure
 
 ```
-your-module/
+bmad-autonomous-development/
 ├── .claude-plugin/
-│   └── marketplace.json       # Module manifest (required for installation)
+│   └── marketplace.json       # Module manifest
 ├── skills/
-│   └── my-skill/              # Rename to your skill name
-│       ├── SKILL.md           # Skill instructions
-│       ├── prompts/           # Internal capability prompts (optional)
-│       ├── scripts/           # Deterministic scripts (optional)
-│       └── assets/            # Module registration files (optional)
-├── docs/                      # Documentation (optional, GitHub Pages ready)
-├── LICENSE
-└── README.md
+│   └── bad/
+│       ├── SKILL.md           # Main skill — coordinator logic
+│       ├── references/        # Phase-specific reference docs
+│       ├── assets/            # Module registration files
+│       └── scripts/           # Config merge scripts
+└── docs/
 ```
-
-## Building with BMad Builder
-
-You don't have to write skills from scratch. The [BMad Builder](https://bmad-builder-docs.bmad-method.org/) provides guided tools for creating production-quality skills:
-
-- **[Agent Builder](https://bmad-builder-docs.bmad-method.org/reference/builder-commands)** — Build agent skills through conversational discovery
-- **[Workflow Builder](https://bmad-builder-docs.bmad-method.org/reference/builder-commands)** — Build workflow and utility skills
-- **[Module Builder](https://bmad-builder-docs.bmad-method.org/reference/builder-commands)** — Package skills into an installable module with help system registration
-- **[Build Your First Module](https://bmad-builder-docs.bmad-method.org/tutorials/build-your-first-module)** — Full walkthrough from idea to distributable module
-
-The Module Builder can scaffold registration files (`module.yaml`, `module-help.csv`, merge scripts) so your module integrates with the BMad help system.
-
-## Adding More Skills
-
-Add skill directories under `skills/` and list them in `marketplace.json`:
-
-```json
-"skills": [
-  "./skills/my-agent",
-  "./skills/my-workflow"
-]
-```
-
-## Documentation
-
-A `docs/` folder is included for your module's documentation. Publish it with [GitHub Pages](https://docs.github.com/en/pages) or any static site host. For a richer docs site, consider [Starlight](https://starlight.astro.build/) (used by the official BMad modules).
-
-## Installation
-
-Users install your module with:
-
-```bash
-npx bmad-method install --custom-content https://github.com/your-org/your-module
-```
-
-See [Distribute Your Module](https://bmad-builder-docs.bmad-method.org/how-to/distribute-your-module) for full details on repo structure, the marketplace.json format, and versioning.
-
-## Publishing to the Marketplace
-
-Once your module is stable, you can list it in the [BMad Plugins Marketplace](https://github.com/bmad-code-org/bmad-plugins-marketplace) for broader discovery:
-
-1. Tag a release (e.g., `v1.0.0`)
-2. Open a PR to the marketplace repo adding a registry entry to `registry/community/`
-3. Your module goes through automated validation and manual review
-
-Review the marketplace [contribution guide](https://github.com/bmad-code-org/bmad-plugins-marketplace/blob/main/CONTRIBUTING.md) and [governance policy](https://github.com/bmad-code-org/bmad-plugins-marketplace/blob/main/GOVERNANCE.md) before submitting.
-
-## Resources
-
-- [BMad Method Documentation](https://docs.bmad-method.org/) — Core framework
-- [BMad Builder Documentation](https://bmad-builder-docs.bmad-method.org/) — Build agents, workflows, and modules
-- [BMad Plugins Marketplace](https://github.com/bmad-code-org/bmad-plugins-marketplace) — Registry, categories, and submission process
 
 ## License
 
-MIT — update `LICENSE` with your own copyright.
+MIT © 2026 Marie Stephen Leo
