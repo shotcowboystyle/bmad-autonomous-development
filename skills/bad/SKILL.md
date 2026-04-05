@@ -118,13 +118,13 @@ DECIDE how much to run based on whether the graph already exists:
 BRANCH SAFETY — before anything else, ensure the repo root is on main:
   git branch --show-current
   If not main:
-    git checkout -- .
-    git checkout main
+    git restore .
+    git switch main
     git pull --ff-only origin main
-  If checkout fails because a worktree claims the branch:
+  If switch fails because a worktree claims the branch:
     git worktree list
     git worktree remove --force <path>
-    git checkout main
+    git switch main
     git pull --ff-only origin main
 
 STEPS:
@@ -375,13 +375,13 @@ After all batch stories complete Phase 2, merge every successful story's PR into
    2. Repo root branch safety check:
         git branch --show-current
       If not main:
-        git checkout -- .
-        git checkout main
+        git restore .
+        git switch main
         git reset --hard origin/main
-      If checkout fails because a worktree claims the branch:
+      If switch fails because a worktree claims the branch:
         git worktree list
         git worktree remove --force <path>
-        git checkout main
+        git switch main
         git reset --hard origin/main
 
    3. Pull main:
