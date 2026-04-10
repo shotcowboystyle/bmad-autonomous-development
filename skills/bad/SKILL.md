@@ -44,7 +44,7 @@ Then proceed to Phase 0.
 
 ## Configuration
 
-Load base values from `_bmad/bad/config.yaml` at startup (via `/bmad-init --module bad --all`). Then parse any `KEY=VALUE` overrides from arguments passed to `/bad` — args win over config. For any variable not in config or args, use the default below.
+Load base values from the `bad` section of `_bmad/config.yaml` at startup. Then parse any `KEY=VALUE` overrides from arguments passed to `/bad` — args win over config. For any variable not in config or args, use the default below.
 
 | Variable | Config Key | Default | Description |
 |----------|-----------|---------|-------------|
@@ -84,9 +84,9 @@ Phase 1: Discover stories  [coordinator logic]
            └─ If none ready → skip to Phase 4
   │
 Phase 2: Run the pipeline  [subagents — stories parallel, steps sequential]
-  ├─► Story A ──► Step 1 → Step 2 → Step 3 → Step 4
-  ├─► Story B ──► Step 1 → Step 2 → Step 3 → Step 4
-  └─► Story C ──► Step 1 → Step 2 → Step 3 → Step 4
+  ├─► Story A ──► Step 1 → Step 2 → Step 3 → Step 4 → Step 5
+  ├─► Story B ──► Step 1 → Step 2 → Step 3 → Step 4 → Step 5
+  └─► Story C ──► Step 1 → Step 2 → Step 3 → Step 4 → Step 5
   │
 Phase 3: Auto-Merge Batch PRs  [subagents — sequential]
            └─ One subagent per story (lowest → highest story number)
@@ -145,8 +145,27 @@ STEPS:
 3. Run /bmad-help with the epic context for new stories — ask it to map their
    dependencies. Merge the result into the existing graph. (Skip if no new stories.)
 
-4. Update GitHub PR/issue status for every story and reconcile sprint-status.yaml.
-   Follow the procedure in `references/phase0-dependency-graph.md` exactly.
+4. GitHub integration — run `gh auth status` first. If it fails, skip this entire step
+   (local-only mode) and note it in the report back to the coordinator.
+
+   a. Ensure the `bad` label exists:
+        gh label create bad --color "0075ca" \
+          --description "Managed by BMad Autonomous Development" 2>/dev/null || true
+
+   b. For each story in `_bmad-output/planning-artifacts/epics.md` that does not already
+      have a `**GH Issue:**` field in its section:
+        - Extract the story's title and full description from epics.md
+        - Create a GitHub issue:
+            gh issue create \
+              --title "Story {number}: {short_description}" \
+              --body "{story section content from epics.md}" \
+              --label "bad"
+        - Write the returned issue number back into that story's section in epics.md,
+          directly under the story heading:
+            **GH Issue:** #{number}
+
+   c. Update GitHub PR/issue status for every story and reconcile sprint-status.yaml.
+      Follow the procedure in `references/phase0-dependency-graph.md` exactly.
 
 5. Clean up merged worktrees — for each story whose PR is now merged and whose
    worktree still exists at {WORKTREE_BASE_PATH}/story-{number}-{short_description}:
@@ -188,6 +207,7 @@ After Phase 0 completes, **expand the task list** — mark Phase 0 `completed`, 
 [ ] Phase 2 | Story {N}: Step 2 — Develop
 [ ] Phase 2 | Story {N}: Step 3 — Code review
 [ ] Phase 2 | Story {N}: Step 4 — PR & CI
+[ ] Phase 2 | Story {N}: Step 5 — PR review
 [ ] Phase 3: Auto-merge (if AUTO_PR_MERGE=true)
 [ ] Phase 4: Batch summary & continuation
 ```
@@ -227,7 +247,7 @@ Launch all stories' Step 1 subagents **in a single message** (parallel). Each st
 **On failure:** stop that story's pipeline. Report step, story, and error. Other stories continue.  
 **Exception:** rate/usage limit failures → run Pre-Continuation Checks (which auto-pauses until reset) then retry.
 
-📣 **Notify per story** as each pipeline concludes (Step 4 success or any step failure):
+📣 **Notify per story** as each pipeline concludes (Step 5 success or any step failure):
 - Success: `✅ Story {number} done — PR #{pr_number}`
 - Failure: `❌ Story {number} failed at Step {N} — {brief error}`
 
@@ -308,25 +328,30 @@ Auto-approve all tool calls (yolo mode).
    If the result is NOT story-{number}-{short_description}, stash changes, checkout the
    correct branch, and re-apply. Never push to main or create a new branch.
 
-3. Run /commit-commands:commit-push-pr.
-   PR title: story-{number}-{short_description} - fixes #{gh_issue_number}
-   (look up gh_issue_number from the epic file or sprint-status.yaml; omit "fixes #" if none)
-   Add "Fixes #{gh_issue_number}" to the PR description if an issue number exists.
+3. Look up the GitHub issue number for this story:
+   Read the story's section in `_bmad-output/planning-artifacts/epics.md` and extract
+   the `**GH Issue:**` field. Save as `gh_issue_number`. If the field is absent
+   (local-only mode — no GitHub auth), proceed without it.
 
-4. CI:
+4. Run /commit-commands:commit-push-pr.
+   PR title: story-{number}-{short_description} - fixes #{gh_issue_number}
+   Include "Fixes #{gh_issue_number}" in the PR description body (omit only if
+   no issue number was found in step 3).
+
+5. CI:
    - If RUN_CI_LOCALLY is true → skip GitHub Actions and run the Local CI Fallback below.
    - Otherwise, if MONITOR_SUPPORT is true → use the Monitor tool to watch CI status:
        Write a poller script:
          while true; do gh run view --json status,conclusion 2>&1; sleep 30; done
        Start it with Monitor. React to each output line as it arrives:
-       - conclusion=success → stop Monitor, proceed to step 5
+       - conclusion=success → stop Monitor, report success
        - conclusion=failure or cancelled → stop Monitor, diagnose, fix, push, restart Monitor
        - Billing/spending limit error in output → stop Monitor, run Local CI Fallback
    - Otherwise → poll manually in a loop:
        gh run view
      - Billing/spending limit error → exit loop, run Local CI Fallback
      - CI failed for other reason, or Claude bot left PR comments → fix, push, loop
-     - CI green → proceed to step 5
+     - CI green → report success
 
 LOCAL CI FALLBACK (when RUN_CI_LOCALLY=true or billing-limited):
   a. Read all .github/workflows/ files triggered on pull_request events.
@@ -342,35 +367,34 @@ LOCAL CI FALLBACK (when RUN_CI_LOCALLY=true or billing-limited):
      - [failure] → [fix]
      All rows must show ✅ Pass before this step is considered complete.
 
-5. CODE REVIEW — spawn a dedicated MODEL_DEV subagent (yolo mode) after CI passes:
-   ```
-   You are the code review agent for story {number}-{short_description}.
-   Working directory: {repo_root}/{WORKTREE_BASE_PATH}/story-{number}-{short_description}.
-   Auto-approve all tool calls (yolo mode).
+Report: success or failure, and the PR number/URL if opened.
+```
 
-   1. Run /code-review:code-review (reads the PR diff via gh pr diff).
-   2. For every finding, apply a fix using your best engineering judgement.
-      Do not skip or defer any finding — fix them all.
-   3. Commit all fixes and push to the PR branch.
-   4. If any fixes were pushed, re-run /code-review:code-review once more to confirm
-      no new issues were introduced. Repeat fix → commit → push → re-review until
-      the review comes back clean.
+### Step 5: PR Code Review (`MODEL_STANDARD`)
 
-   Report: clean (no findings or all fixed) or failure with details.
-   ```
-   Wait for the subagent to report before continuing. If it reports failure,
-   stop this story and surface the error.
+Spawn with model `MODEL_STANDARD` (yolo mode):
+```
+You are the Step 5 PR code reviewer for story {number}-{short_description}.
+Working directory: {repo_root}/{WORKTREE_BASE_PATH}/story-{number}-{short_description}.
+Auto-approve all tool calls (yolo mode).
 
-6. Update sprint-status.yaml at the REPO ROOT:
+1. Run /code-review:code-review (reads the PR diff via gh pr diff).
+2. For every finding, apply a fix using your best engineering judgement.
+   Do not skip or defer any finding — fix them all.
+3. Commit all fixes and push to the PR branch.
+4. If any fixes were pushed, re-run /code-review:code-review once more to confirm
+   no new issues were introduced. Repeat fix → commit → push → re-review until
+   the review comes back clean.
+5. Update sprint-status.yaml at the REPO ROOT:
      {repo_root}/_bmad-output/implementation-artifacts/sprint-status.yaml
    Set story {number} status to `done`.
 
-Report: success or failure, and the PR number/URL if opened.
+Report: clean (no findings or all fixed) or failure with details.
 ```
 
 ---
 
-## Phase 3: Auto-Merge Batch PRs (when `AUTO_PR_MERGE=true`)
+## Phase 3: Auto-Merge Batch PRs (when AUTO_PR_MERGE=true)
 
 After all batch stories complete Phase 2, merge every successful story's PR into `main` — one subagent per story, **sequentially** (lowest story number first).
 
@@ -555,7 +579,7 @@ Read `references/monitor-pattern.md` when `MONITOR_SUPPORT=true`. It covers CI s
 
 1. **Delegate mode only** — never read files, run git/gh commands, or write to disk yourself. The only platform command the coordinator may run directly is context compaction via Pre-Continuation Checks (when `CONTEXT_COMPACTION_THRESHOLD` is exceeded). All other slash commands and operations are delegated to subagents.
 2. **One subagent per step per story** — spawn only after the previous step reports success.
-3. **Sequential steps within a story** — Steps 1→2→3→4 run strictly in order.
+3. **Sequential steps within a story** — Steps 1→2→3→4→5 run strictly in order.
 4. **Parallel stories** — launch all stories' Step 1 in one message (one tool call per story). Phase 3 runs sequentially by design.
 5. **Dependency graph is authoritative** — never pick a story whose dependencies are not fully merged. Use Phase 0's report, not your own file reads.
 6. **Phase 0 runs before every batch** — always after the Phase 4 wait. Always as a fresh subagent.
