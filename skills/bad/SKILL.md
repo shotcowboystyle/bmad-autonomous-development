@@ -103,6 +103,12 @@ Phase 4: Batch Completion & Continuation
 
 ## Phase 0: Build or Update the Dependency Graph
 
+Before spawning the subagent, **create the Phase 0 task** using TaskCreate and immediately mark it `in_progress`:
+
+```
+[in_progress] Phase 0: Dependency graph
+```
+
 Spawn a **single `MODEL_STANDARD` subagent** (yolo mode) with these instructions. The coordinator waits for the report.
 
 ```
@@ -173,12 +179,12 @@ Ready: {N} stories — {comma-separated story numbers}
 Blocked: {N} stories (if any)
 ```
 
-After Phase 0 completes, **create the sprint task list** using TaskCreate — one task per item below. This gives a live progress view in the UI that updates as work completes.
+After Phase 0 completes, **expand the task list** — mark Phase 0 `completed`, then add the remaining tasks using TaskCreate:
 
 ```
-[ ] Phase 0: Dependency graph
-[ ] Phase 1: Story selection
-[ ] Story {N}: Step 1 — Create story    ← one set per selected story
+[completed] Phase 0: Dependency graph     ← already done
+[ ] Phase 1: Story selection              ← mark completed immediately
+[ ] Story {N}: Step 1 — Create story      ← one set per selected story
 [ ] Story {N}: Step 2 — Develop
 [ ] Story {N}: Step 3 — Code review
 [ ] Story {N}: Step 4 — PR & CI
@@ -186,7 +192,7 @@ After Phase 0 completes, **create the sprint task list** using TaskCreate — on
 [ ] Phase 4: Batch summary & continuation
 ```
 
-Mark Phase 0 and Phase 1 tasks `completed` immediately after creating them (they are already done by this point). Update each story step task to `in_progress` when its subagent is spawned, and `completed` (or `failed`) when it reports back. Update Phase 3 and Phase 4 tasks similarly as they execute.
+Mark Phase 1 `completed` immediately after creating it (it is already done by this point). Update each story step task to `in_progress` when its subagent is spawned, and `completed` (or `failed`) when it reports back. Update Phase 3 and Phase 4 tasks similarly as they execute.
 
 ---
 
@@ -309,14 +315,14 @@ Auto-approve all tool calls (yolo mode).
 
 4. CI:
    - If RUN_CI_LOCALLY is true → skip GitHub Actions and run the Local CI Fallback below.
-   - If MONITOR_SUPPORT is true → use the Monitor tool to watch CI status:
+   - Otherwise, if MONITOR_SUPPORT is true → use the Monitor tool to watch CI status:
        Write a poller script:
          while true; do gh run view --json status,conclusion 2>&1; sleep 30; done
        Start it with Monitor. React to each output line as it arrives:
        - conclusion=success → stop Monitor, proceed to step 5
        - conclusion=failure or cancelled → stop Monitor, diagnose, fix, push, restart Monitor
        - Billing/spending limit error in output → stop Monitor, run Local CI Fallback
-   - If MONITOR_SUPPORT is false → poll manually in a loop:
+   - Otherwise → poll manually in a loop:
        gh run view
      - Billing/spending limit error → exit loop, run Local CI Fallback
      - CI failed for other reason, or Claude bot left PR comments → fix, push, loop
