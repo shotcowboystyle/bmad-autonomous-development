@@ -80,7 +80,7 @@ Present as **"Claude Code settings"**:
 - `api_five_hour_threshold` — 5-hour API usage % at which to pause [80]
 - `api_seven_day_threshold` — 7-day API usage % at which to pause [95]
 
-Automatically write `timer_support: true` — no prompt needed.
+Automatically write `timer_support: true` and `monitor_support: true` — no prompt needed.
 
 #### All Other Harnesses
 
@@ -90,7 +90,7 @@ Present as **"{HarnessName} settings"**:
 - `model_quality` — Model for code review step (e.g. `best`, `o1`, `pro`)
 - `api_usage_threshold` — API usage % at which to pause for rate limits [80]
 
-Automatically write `timer_support: false` — no prompt needed. BAD will use prompt-based continuation instead of native timers on this harness.
+Automatically write `timer_support: false` and `monitor_support: false` — no prompt needed. BAD will use prompt-based continuation instead of native timers, and manual polling loops instead of the Monitor tool, on this harness.
 
 ## Step 4: Write Files
 
@@ -107,6 +107,7 @@ Write a temp JSON file with collected answers structured as:
     "retro_timer_seconds": "600",
     "context_compaction_threshold": "80",
     "timer_support": true,
+    "monitor_support": true,
     "model_standard": "sonnet",
     "model_quality": "opus",
     "api_five_hour_threshold": "80",

@@ -13,7 +13,7 @@ Once your epics and stories are planned, BAD takes over:
 1. *(`MODEL_STANDARD` subagent)* Builds a dependency graph from your sprint backlog — maps story dependencies, syncs GitHub PR status, and identifies what's ready to work on
 2. Picks ready stories from the graph, respecting epic ordering and dependencies
 3. Runs up to `MAX_PARALLEL_STORIES` stories simultaneously — each in its own isolated git worktree — each through a sequential 4-step pipeline:
-   - **Step 1** *(`MODEL_STANDARD` subagent)* — `bmad-create-story`: generates the story spec
+   - **Step 1** *(`MODEL_STANDARD` subagent)* — `bmad-create-story`: generates and validates the story spec
    - **Step 2** *(`MODEL_STANDARD` subagent)* — `bmad-dev-story`: implements the code
    - **Step 3** *(`MODEL_QUALITY` subagent)* — `bmad-code-review`: reviews and fixes the implementation
    - **Step 4** *(`MODEL_STANDARD` subagent)* — commit, push, open PR, monitor CI, fix any failing checks, resolve code review comments, and resolve merge conflicts
@@ -22,7 +22,7 @@ Once your epics and stories are planned, BAD takes over:
 
 ## Requirements
 
-- [BMad Method](https://docs.bmad-method.org/) installed in your project
+- [BMad Method](https://docs.bmad-method.org/) installed in your project `npx bmad-method install --modules bmm,tea`
 - A sprint plan with epics, stories, and `sprint-status.yaml`
 - Git + GitHub CLI (`gh`) installed and authenticated:
   1. `brew install gh`

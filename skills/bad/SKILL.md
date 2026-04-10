@@ -33,7 +33,7 @@ Before doing anything else, determine how to send notifications:
    - If another channel type is connected, save its equivalent identifier.
    - If no channel is connected, set `NOTIFY_SOURCE="terminal"`.
 
-2. **Send the BAD started notification** using the [Notify Pattern](#notify-pattern):
+2. **Send the BAD started notification** using the [Notify Pattern](references/notify-pattern.md):
    ```
    🤖 BAD started — building dependency graph...
    ```
@@ -56,6 +56,7 @@ Load base values from `_bmad/bad/config.yaml` at startup (via `/bmad-init --modu
 | `WAIT_TIMER_SECONDS` | `wait_timer_seconds` | `3600` | Post-batch wait before re-checking PR status (1 hr) |
 | `CONTEXT_COMPACTION_THRESHOLD` | `context_compaction_threshold` | `80` | Context window % at which to compact/summarise context |
 | `TIMER_SUPPORT` | `timer_support` | `true` | When `true`, use native platform timers; when `false`, use prompt-based continuation |
+| `MONITOR_SUPPORT` | `monitor_support` | `true` | When `true`, use the Monitor tool for CI and PR-merge polling; when `false`, fall back to manual polling loops (required for Bedrock/Vertex/Foundry) |
 | `API_FIVE_HOUR_THRESHOLD` | `api_five_hour_threshold` | `80` | (Claude Code) 5-hour rate limit % that triggers a pause |
 | `API_SEVEN_DAY_THRESHOLD` | `api_seven_day_threshold` | `95` | (Claude Code) 7-day rate limit % that triggers a pause |
 | `API_USAGE_THRESHOLD` | `api_usage_threshold` | `80` | (Other harnesses) Generic API usage % that triggers a pause |
@@ -172,6 +173,21 @@ Ready: {N} stories — {comma-separated story numbers}
 Blocked: {N} stories (if any)
 ```
 
+After Phase 0 completes, **create the sprint task list** using TaskCreate — one task per item below. This gives a live progress view in the UI that updates as work completes.
+
+```
+[ ] Phase 0: Dependency graph
+[ ] Phase 1: Story selection
+[ ] Story {N}: Step 1 — Create story    ← one set per selected story
+[ ] Story {N}: Step 2 — Develop
+[ ] Story {N}: Step 3 — Code review
+[ ] Story {N}: Step 4 — PR & CI
+[ ] Phase 3: Auto-merge (if AUTO_PR_MERGE=true)
+[ ] Phase 4: Batch summary & continuation
+```
+
+Mark Phase 0 and Phase 1 tasks `completed` immediately after creating them (they are already done by this point). Update each story step task to `in_progress` when its subagent is spawned, and `completed` (or `failed`) when it reports back. Update Phase 3 and Phase 4 tasks similarly as they execute.
+
 ---
 
 ## Phase 1: Discover Stories
@@ -228,7 +244,11 @@ Working directory: {repo_root}. Auto-approve all tool calls (yolo mode).
 
 3. Run /bmad-create-story {number}-{short_description}.
 
-4. Update sprint-status.yaml at the REPO ROOT (not the worktree copy):
+4. Run "validate story {number}-{short_description}". For every finding,
+   apply a fix directly to the story file using your best engineering judgement.
+   Repeat until no findings remain.
+
+5. Update sprint-status.yaml at the REPO ROOT (not the worktree copy):
      _bmad-output/implementation-artifacts/sprint-status.yaml
    Set story {number} status to `ready-for-dev`.
 
@@ -289,7 +309,14 @@ Auto-approve all tool calls (yolo mode).
 
 4. CI:
    - If RUN_CI_LOCALLY is true → skip GitHub Actions and run the Local CI Fallback below.
-   - Otherwise monitor CI in a loop:
+   - If MONITOR_SUPPORT is true → use the Monitor tool to watch CI status:
+       Write a poller script:
+         while true; do gh run view --json status,conclusion 2>&1; sleep 30; done
+       Start it with Monitor. React to each output line as it arrives:
+       - conclusion=success → stop Monitor, proceed to step 5
+       - conclusion=failure or cancelled → stop Monitor, diagnose, fix, push, restart Monitor
+       - Billing/spending limit error in output → stop Monitor, run Local CI Fallback
+   - If MONITOR_SUPPORT is false → poll manually in a loop:
        gh run view
      - Billing/spending limit error → exit loop, run Local CI Fallback
      - CI failed for other reason, or Claude bot left PR comments → fix, push, loop
@@ -443,7 +470,7 @@ Using the assessment report:
 1. Print: `🎉 Epic {current_epic_name} is complete! Starting retrospective countdown ({RETRO_TIMER_SECONDS ÷ 60} minutes)...`
 
    📣 **Notify:** `🎉 Epic {current_epic_name} complete! Running retrospective in {RETRO_TIMER_SECONDS ÷ 60} min...`
-2. Start a timer using the **[Timer Pattern](#timer-pattern)** with:
+2. Start a timer using the **[Timer Pattern](references/timer-pattern.md)** with:
    - **Duration:** `RETRO_TIMER_SECONDS`
    - **Fire prompt:** `"BAD_RETRO_TIMER_FIRED — The retrospective countdown has elapsed. Auto-run the retrospective: spawn a MODEL_DEV subagent (yolo mode) to run /bmad-retrospective, accept all changes. Run Pre-Continuation Checks after it completes, then proceed to Phase 4 Step 3."`
    - **[C] label:** `Run retrospective now`
@@ -467,116 +494,54 @@ Using the assessment report from Step 2, follow the applicable branch:
 1. Print a status line:
    - Epic just completed: `✅ Epic {current_epic_name} complete. Next up: Epic {next_epic_name} ({stories_remaining} stories remaining).`
    - More stories in current epic: `✅ Batch complete. Ready for the next batch.`
-2. Start a timer using the **[Timer Pattern](#timer-pattern)** with:
-   - **Duration:** `WAIT_TIMER_SECONDS`
-   - **Fire prompt:** `"BAD_WAIT_TIMER_FIRED — The post-batch wait has elapsed. Run Pre-Continuation Checks, then re-run Phase 0, then proceed to Phase 1."`
-   - **[C] label:** `Continue now`
-   - **[S] label:** `Stop BAD`
-   - **[C] / FIRED action:** Run Pre-Continuation Checks, then re-run Phase 0.
-   - **[S] action:** Stop BAD, print a final summary, and 📣 **Notify:** `🛑 BAD stopped by user.`
+2. Start the wait using the **[Monitor Pattern](references/monitor-pattern.md)** (when `MONITOR_SUPPORT=true`) or the **[Timer Pattern](references/timer-pattern.md)** (when `MONITOR_SUPPORT=false`):
+
+   **If `MONITOR_SUPPORT=true` — Monitor + CronCreate fallback:**
+   - Start Monitor with a PR-merge watcher script:
+       ```bash
+       while true; do gh pr list --json number,mergedAt --jq '.[] | select(.mergedAt != null) | "MERGED: #\(.number)"'; sleep 60; done
+       ```
+     Save the Monitor handle as `PR_MONITOR`.
+   - Also start a CronCreate fallback timer using the [Timer Pattern](references/timer-pattern.md) with:
+     - **Duration:** `WAIT_TIMER_SECONDS`
+     - **Fire prompt:** `"BAD_WAIT_TIMER_FIRED — Max wait elapsed. Stop PR_MONITOR, run Pre-Continuation Checks, then re-run Phase 0."`
+     - **[C] label:** `Continue now`
+     - **[S] label:** `Stop BAD`
+     - **[C] / FIRED action:** Stop `PR_MONITOR`, run Pre-Continuation Checks, then re-run Phase 0.
+     - **[S] action:** Stop `PR_MONITOR`, CronDelete, stop BAD, print final summary, and 📣 **Notify:** `🛑 BAD stopped by user.`
+   - **On Monitor event (merge detected):** CronDelete the fallback timer, stop `PR_MONITOR`, run Pre-Continuation Checks, re-run Phase 0.
+   - 📣 **Notify:** `⏳ Watching for PR merges (max wait: {WAIT_TIMER_SECONDS ÷ 60} min)...`
+
+   **If `MONITOR_SUPPORT=false` — Timer only:**
+   - Use the [Timer Pattern](references/timer-pattern.md) with:
+     - **Duration:** `WAIT_TIMER_SECONDS`
+     - **Fire prompt:** `"BAD_WAIT_TIMER_FIRED — The post-batch wait has elapsed. Run Pre-Continuation Checks, then re-run Phase 0, then proceed to Phase 1."`
+     - **[C] label:** `Continue now`
+     - **[S] label:** `Stop BAD`
+     - **[C] / FIRED action:** Run Pre-Continuation Checks, then re-run Phase 0.
+     - **[S] action:** Stop BAD, print a final summary, and 📣 **Notify:** `🛑 BAD stopped by user.`
+
 3. After Phase 0 completes:
    - At least one story unblocked → proceed to Phase 1.
-   - All stories still blocked → print which PRs are pending (from Phase 0 report), restart Branch B for another `WAIT_TIMER_SECONDS` countdown.
+   - All stories still blocked → print which PRs are pending (from Phase 0 report), restart Branch B for another wait.
 
 ---
 
 ## Notify Pattern
 
-Use this pattern every time a `📣 Notify:` callout appears **anywhere in this skill** — including inside the Timer Pattern.
-
-**If `NOTIFY_SOURCE="telegram"`:** call `mcp__plugin_telegram_telegram__reply` with:
-- `chat_id`: `NOTIFY_CHAT_ID`
-- `text`: the message
-
-**If `NOTIFY_SOURCE="terminal"`** (or if the Telegram tool call fails): print the message in the conversation as a normal response.
-
-Always send both a terminal print and a channel message — the terminal print keeps the in-session transcript readable, and the channel message reaches the user on their device.
+Read `references/notify-pattern.md` whenever a `📣 Notify:` callout appears. It covers Telegram and terminal output.
 
 ---
 
 ## Timer Pattern
 
-Both the retrospective and post-batch wait timers use this pattern. The caller supplies the duration, fire prompt, option labels, and actions.
-
-Behaviour depends on `TIMER_SUPPORT`:
+Read `references/timer-pattern.md` when instructed to start a timer. It covers both `TIMER_SUPPORT=true` (CronCreate) and `TIMER_SUPPORT=false` (prompt-based) paths.
 
 ---
 
-### If `TIMER_SUPPORT=true` (native platform timers)
+## Monitor Pattern
 
-**Step 1 — compute target cron expression** (convert seconds to minutes: `SECONDS ÷ 60`):
-```bash
-# macOS
-date -v +{N}M '+%M %H %d %m *'
-# Linux
-date -d '+{N} minutes' '+%M %H %d %m *'
-```
-Save as `CRON_EXPR`. Save `TIMER_START=$(date +%s)`.
-
-**Step 2 — create the one-shot timer** via `CronCreate`:
-- `cron`: expression from Step 1
-- `recurring`: `false`
-- `prompt`: the caller-supplied fire prompt
-
-Save the returned job ID as `JOB_ID`.
-
-**Step 3 — print the options menu** (always all three options):
-> Timer running (job: {JOB_ID}). I'll act in {N} minutes.
->
-> - **[C] Continue** — {C label}
-> - **[S] Stop** — {S label}
-> - **[M] {N} Modify timer to {N} minutes** — shorten or extend the countdown
-
-📣 **Notify** using the [Notify Pattern](#notify-pattern) with the same options so the user can respond from their device:
-```
-⏱ Timer set — {N} minutes (job: {JOB_ID})
-
-[C] {C label}
-[S] {S label}
-[M] <minutes> — modify countdown
-```
-
-Wait for whichever arrives first — user reply or fired prompt. On any human reply, print elapsed time first:
-```bash
-ELAPSED=$(( $(date +%s) - TIMER_START ))
-echo "⏱ Time elapsed: $((ELAPSED / 60))m $((ELAPSED % 60))s"
-```
-
-- **[C]** → `CronDelete(JOB_ID)`, run the [C] action
-- **[S]** → `CronDelete(JOB_ID)`, run the [S] action
-- **[M] N** → `CronDelete(JOB_ID)`, recompute cron for N minutes from now, `CronCreate` again with same fire prompt, update `JOB_ID` and `TIMER_START`, print updated countdown, then 📣 **Notify** using the [Notify Pattern](#notify-pattern):
-  ```
-  ⏱ Timer updated — {N} minutes (job: {JOB_ID})
-
-  [C] {C label}
-  [S] {S label}
-  [M] <minutes> — modify countdown
-  ```
-- **FIRED (no prior reply)** → run the [C] action automatically
-
----
-
-### If `TIMER_SUPPORT=false` (prompt-based continuation)
-
-Save `TIMER_START=$(date +%s)`. No native timer is created — print the options menu immediately and wait for user reply:
-
-> Waiting {N} minutes before continuing. Reply when ready.
->
-> - **[C] Continue** — {C label}
-> - **[S] Stop** — {S label}
-> - **[M] N** — remind me after N minutes (reply with `[M] <minutes>`)
-
-📣 **Notify** using the [Notify Pattern](#notify-pattern) with the same options.
-
-On any human reply, print elapsed time first:
-```bash
-ELAPSED=$(( $(date +%s) - TIMER_START ))
-echo "⏱ Time elapsed: $((ELAPSED / 60))m $((ELAPSED % 60))s"
-```
-
-- **[C]** → run the [C] action
-- **[S]** → run the [S] action
-- **[M] N** → update `TIMER_START`, print updated wait message, 📣 **Notify**, and wait again
+Read `references/monitor-pattern.md` when `MONITOR_SUPPORT=true`. It covers CI status polling (Step 4) and PR-merge watching (Phase 4 Branch B), plus the `MONITOR_SUPPORT=false` fallback for each.
 
 ---
 
