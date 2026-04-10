@@ -182,12 +182,12 @@ Blocked: {N} stories (if any)
 After Phase 0 completes, **expand the task list** — mark Phase 0 `completed`, then add the remaining tasks using TaskCreate:
 
 ```
-[completed] Phase 0: Dependency graph     ← already done
-[ ] Phase 1: Story selection              ← mark completed immediately
-[ ] Story {N}: Step 1 — Create story      ← one set per selected story
-[ ] Story {N}: Step 2 — Develop
-[ ] Story {N}: Step 3 — Code review
-[ ] Story {N}: Step 4 — PR & CI
+[completed] Phase 0: Dependency graph          ← already done
+[ ] Phase 1: Story selection                   ← mark completed immediately
+[ ] Phase 2 | Story {N}: Step 1 — Create story ← one set per selected story
+[ ] Phase 2 | Story {N}: Step 2 — Develop
+[ ] Phase 2 | Story {N}: Step 3 — Code review
+[ ] Phase 2 | Story {N}: Step 4 — PR & CI
 [ ] Phase 3: Auto-merge (if AUTO_PR_MERGE=true)
 [ ] Phase 4: Batch summary & continuation
 ```
