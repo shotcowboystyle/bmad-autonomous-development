@@ -501,8 +501,9 @@ Read:
   - _bmad-output/implementation-artifacts/sprint-status.yaml
 
 Report back:
-  - current_epic_complete: true/false (all stories done or have open PRs)
-  - all_epics_complete: true/false (every story across every epic is done)
+  - current_epic_merged: true/false — every story in the current epic has a merged PR (status `done`)
+  - current_epic_prs_open: true/false — every story in the current epic has a PR (open or merged), but at least one is not yet merged
+  - all_epics_complete: true/false — every story across every epic has a merged PR (status `done`)
   - current_epic_name: name/number of the lowest incomplete epic
   - next_epic_name: name/number of the next epic (if any)
   - stories_remaining: count of non-done stories in the current epic
@@ -510,7 +511,7 @@ Report back:
 
 Using the assessment report:
 
-**If `current_epic_complete = true`:**
+**If `current_epic_merged = true`:**
 1. Print: `🎉 Epic {current_epic_name} is complete! Starting retrospective countdown ({RETRO_TIMER_SECONDS ÷ 60} minutes)...`
 
    📣 **Notify:** `🎉 Epic {current_epic_name} complete! Running retrospective in {RETRO_TIMER_SECONDS ÷ 60} min...`
@@ -519,8 +520,10 @@ Using the assessment report:
    - **Fire prompt:** `"BAD_RETRO_TIMER_FIRED — The retrospective countdown has elapsed. Auto-run the retrospective: spawn a MODEL_STANDARD subagent (yolo mode) to run /bmad-retrospective, accept all changes. Run Pre-Continuation Checks after it completes, then proceed to Phase 4 Step 3."`
    - **[C] label:** `Run retrospective now`
    - **[S] label:** `Skip retrospective`
+   - **[X] label:** `Stop BAD`
    - **[C] / FIRED action:** Spawn MODEL_STANDARD subagent (yolo mode) to run `/bmad-retrospective`. Accept all changes. Run Pre-Continuation Checks after.
    - **[S] action:** Skip retrospective.
+   - **[X] action:** `CronDelete(JOB_ID)`, stop BAD, print final summary, and 📣 **Notify:** `🛑 BAD stopped by user.`
 3. Proceed to Step 3 after the retrospective decision resolves.
 
 ### Step 3: Gate & Continue
@@ -536,8 +539,9 @@ Using the assessment report from Step 2, follow the applicable branch:
 **Branch B — More work remains:**
 
 1. Print a status line:
-   - Epic just completed: `✅ Epic {current_epic_name} complete. Next up: Epic {next_epic_name} ({stories_remaining} stories remaining).`
-   - More stories in current epic: `✅ Batch complete. Ready for the next batch.`
+   - `current_epic_merged = true` (epic fully landed): `✅ Epic {current_epic_name} complete. Next up: Epic {next_epic_name} ({stories_remaining} stories remaining).`
+   - `current_epic_prs_open = true` (all stories have PRs, waiting for merges): `⏸ Epic {current_epic_name} in review — waiting for PRs to merge before continuing.`
+   - Otherwise (more stories to develop in current epic): `✅ Batch complete. Ready for the next batch.`
 2. Start the wait using the **[Monitor Pattern](references/monitor-pattern.md)** (when `MONITOR_SUPPORT=true`) or the **[Timer Pattern](references/timer-pattern.md)** (when `MONITOR_SUPPORT=false`):
 
    **If `MONITOR_SUPPORT=true` — Monitor + CronCreate fallback:**

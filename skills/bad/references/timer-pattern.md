@@ -24,11 +24,12 @@ Save as `CRON_EXPR`. Save `TIMER_START=$(date +%s)`.
 
 Save the returned job ID as `JOB_ID`.
 
-**Step 3 — print the options menu** (always all three options):
+**Step 3 — print the options menu** (always [C], [S], [M]; include [X] only if the caller supplied an [X] label):
 > Timer running (job: {JOB_ID}). I'll act in {N} minutes.
 >
 > - **[C] Continue** — {C label}
 > - **[S] Stop** — {S label}
+> - **[X] Exit** — {X label}  ← omit this line if no [X] label was supplied
 > - **[M] {N} Modify timer to {N} minutes** — shorten or extend the countdown
 
 📣 **Notify** (see `references/notify-pattern.md`) with the same options so the user can respond from their device:
@@ -37,6 +38,7 @@ Save the returned job ID as `JOB_ID`.
 
 [C] {C label}
 [S] {S label}
+[X] {X label}   ← omit if no [X] label supplied
 [M] <minutes> — modify countdown
 ```
 
@@ -48,12 +50,14 @@ echo "⏱ Time elapsed: $((ELAPSED / 60))m $((ELAPSED % 60))s"
 
 - **[C]** → `CronDelete(JOB_ID)`, run the [C] action
 - **[S]** → `CronDelete(JOB_ID)`, run the [S] action
+- **[X]** → `CronDelete(JOB_ID)`, run the [X] action ← only if [X] label was supplied
 - **[M] N** → `CronDelete(JOB_ID)`, recompute cron for N minutes from now, `CronCreate` again with same fire prompt, update `JOB_ID` and `TIMER_START`, print updated countdown, then 📣 **Notify**:
   ```
   ⏱ Timer updated — {N} minutes (job: {JOB_ID})
 
   [C] {C label}
   [S] {S label}
+  [X] {X label}   ← omit if no [X] label supplied
   [M] <minutes> — modify countdown
   ```
 - **FIRED (no prior reply)** → run the [C] action automatically
@@ -68,6 +72,7 @@ Save `TIMER_START=$(date +%s)`. No native timer is created — print the options
 >
 > - **[C] Continue** — {C label}
 > - **[S] Stop** — {S label}
+> - **[X] Exit** — {X label}  ← omit this line if no [X] label was supplied
 > - **[M] N** — remind me after N minutes (reply with `[M] <minutes>`)
 
 📣 **Notify** (see `references/notify-pattern.md`) with the same options.
@@ -80,4 +85,5 @@ echo "⏱ Time elapsed: $((ELAPSED / 60))m $((ELAPSED % 60))s"
 
 - **[C]** → run the [C] action
 - **[S]** → run the [S] action
+- **[X]** → run the [X] action ← only if [X] label was supplied
 - **[M] N** → update `TIMER_START`, print updated wait message, 📣 **Notify**, and wait again
