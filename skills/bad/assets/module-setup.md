@@ -2,7 +2,7 @@
 
 Standalone module self-registration for BMad Autonomous Development. This file is loaded when:
 - The user passes `setup`, `configure`, or `install` as an argument
-- The module is not yet registered in `{project-root}/_bmad/bad/config.yaml`
+- The module is not yet registered in `{project-root}/_bmad/config.yaml` (no `bad:` section)
 
 ## Overview
 
@@ -36,6 +36,47 @@ Check for the presence of harness directories at the project root:
 | `.cline/` | `cline` |
 
 Store all detected harnesses. Determine the **current harness** from this skill's own file path — whichever harness directory contains this running skill is the current harness. Use the current harness to drive the question branch in Step 3.
+
+## Step 2b: Session-State Hook (Claude Code only)
+
+Skip this step if `claude-code` was not detected in Step 2.
+
+The BAD coordinator's Pre-Continuation Checks (rate-limit pausing, context compaction) need
+access to Claude Code session state — `context_window.used_percentage` and `rate_limits.*`.
+Claude Code exposes this data via the `statusLine` script mechanism: it pipes a JSON blob to
+the script on every API response. This step installs a lightweight script that writes that JSON
+to a temp file the coordinator reads with the Bash tool.
+
+Ask: **"Install BAD session-state capture (writes rate-limit / context data to a temp file for Pre-Continuation Checks)? [Y/n]"**
+
+Default: **yes** (or auto-accept if `--headless` / `accept all defaults`).
+
+If **yes**:
+
+1. Copy `./assets/bad-statusline.sh` to `{project-root}/.claude/bad-statusline.sh`.
+   Make it executable: `chmod +x {project-root}/.claude/bad-statusline.sh`.
+
+2. Read `{project-root}/.claude/settings.json` (create `{}` if absent).
+
+3. Check if a `statusLine` key already exists:
+   - **If absent:** set it to:
+     ```json
+     "statusLine": {
+       "type": "command",
+       "command": ".claude/bad-statusline.sh"
+     }
+     ```
+   - **If already set:** do not overwrite. Instead, print:
+     ```
+     ⚠️  A statusLine is already configured in .claude/settings.json.
+     To enable BAD's session-state capture, chain it manually:
+       1. Open .claude/bad-statusline.sh — it shows how to pipe to an existing script.
+       2. Add .claude/bad-statusline.sh as the last step in your existing statusline pipeline.
+     ```
+
+4. Write the updated `settings.json` back (only if you modified it).
+
+---
 
 ## Step 3: Collect Configuration
 
@@ -80,7 +121,7 @@ Present as **"Claude Code settings"**:
 - `api_five_hour_threshold` — 5-hour API usage % at which to pause [80]
 - `api_seven_day_threshold` — 7-day API usage % at which to pause [95]
 
-Automatically write `timer_support: true` — no prompt needed.
+Automatically write `timer_support: true` and `monitor_support: true` — no prompt needed.
 
 #### All Other Harnesses
 
@@ -90,7 +131,7 @@ Present as **"{HarnessName} settings"**:
 - `model_quality` — Model for code review step (e.g. `best`, `o1`, `pro`)
 - `api_usage_threshold` — API usage % at which to pause for rate limits [80]
 
-Automatically write `timer_support: false` — no prompt needed. BAD will use prompt-based continuation instead of native timers on this harness.
+Automatically write `timer_support: false` and `monitor_support: false` — no prompt needed. BAD will use prompt-based continuation instead of native timers, and manual polling loops instead of the Monitor tool, on this harness.
 
 ## Step 4: Write Files
 
@@ -107,6 +148,7 @@ Write a temp JSON file with collected answers structured as:
     "retro_timer_seconds": "600",
     "context_compaction_threshold": "80",
     "timer_support": true,
+    "monitor_support": true,
     "model_standard": "sonnet",
     "model_quality": "opus",
     "api_five_hour_threshold": "80",

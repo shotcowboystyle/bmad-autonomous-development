@@ -1,6 +1,8 @@
-# Phase 4: Auto-Merge — Subagent Instructions
+# Phase 3: Auto-Merge — Subagent Instructions
 
 The coordinator spawns one subagent per story, sequentially. Pass these instructions to each subagent. Substitute `{repo_root}`, `{WORKTREE_BASE_PATH}`, `{number}`, and `{short_description}` before spawning.
+
+> **gh fallback:** If any `gh` command fails, read `references/coordinator/pattern-gh-curl-fallback.md` for curl equivalents. Note: `gh pr merge` has no curl fallback — if unavailable, report the failure and ask the user to merge manually.
 
 ---
 
@@ -45,7 +47,7 @@ You are working in the worktree at `{repo_root}/{WORKTREE_BASE_PATH}/story-{numb
    - If checks show `pending` still (e.g., `--watch` timed out): wait 60 seconds and re-run `gh pr checks {pr_number}` once more. If still pending after the retry, report and stop.
    - Only proceed to step 4 when every check shows `pass` or `success`.
 
-   > **Why this matters:** Phase 4 runs after Step 4, which may have seen CI green at PR-creation time. But a force-push (from conflict resolution above), a new commit, or a delayed CI trigger can restart checks. Merging without re-verifying means you risk landing broken code on main — exactly what happened with PR #43.
+   > **Why this matters:** Phase 3 (auto-merge) runs after Step 4 (PR & CI), which may have seen CI green at PR-creation time. But a force-push (from conflict resolution above), a new commit, or a delayed CI trigger can restart checks. Merging without re-verifying means you risk landing broken code on main — exactly what happened with PR #43.
 
 4. **Merge the PR** using squash strategy:
    ```bash
