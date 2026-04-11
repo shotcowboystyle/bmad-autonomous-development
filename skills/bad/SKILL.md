@@ -50,7 +50,7 @@ Load base values from the `bad` section of `_bmad/config.yaml` at startup. Then 
 |----------|-----------|---------|-------------|
 | `MAX_PARALLEL_STORIES` | `max_parallel_stories` | `3` | Max stories to run in a single batch |
 | `WORKTREE_BASE_PATH` | `worktree_base_path` | `.worktrees` | Root directory for git worktrees |
-| `MODEL_STANDARD` | `model_standard` | `sonnet` | Model for Steps 1, 2, 4 and Phase 3 (auto-merge) |
+| `MODEL_STANDARD` | `model_standard` | `sonnet` | Model for Steps 1, 2, 4, 5 and Phase 3 (auto-merge) |
 | `MODEL_QUALITY` | `model_quality` | `opus` | Model for Step 3 (code review) |
 | `RETRO_TIMER_SECONDS` | `retro_timer_seconds` | `600` | Auto-retrospective countdown after epic completion (10 min) |
 | `WAIT_TIMER_SECONDS` | `wait_timer_seconds` | `3600` | Post-batch wait before re-checking PR status (1 hr) |
@@ -103,10 +103,19 @@ Phase 4: Batch Completion & Continuation
 
 ## Phase 0: Build or Update the Dependency Graph
 
-Before spawning the subagent, **create the Phase 0 task** using TaskCreate and immediately mark it `in_progress`:
+Before spawning the subagent, **create the full initial task list** using TaskCreate so the user can see the complete pipeline at a glance. Mark Phase 0 `in_progress`; all others start as `[ ]`. Apply the Phase 3 rule at creation time:
 
 ```
 [in_progress] Phase 0: Dependency graph
+[ ] Phase 1: Story selection
+[ ] Phase 2: Step 1 — Create story
+[ ] Phase 2: Step 2 — Develop
+[ ] Phase 2: Step 3 — Code review
+[ ] Phase 2: Step 4 — PR & CI
+[ ] Phase 2: Step 5 — PR review
+[ ] Phase 3: Auto-merge                                      ← if AUTO_PR_MERGE=true
+[completed] Phase 3: Auto-merge — skipped (AUTO_PR_MERGE=false)  ← if AUTO_PR_MERGE=false
+[ ] Phase 4: Batch summary & continuation
 ```
 
 Call the **Agent tool** with `model: MODEL_STANDARD`, `description: "Phase 0: dependency graph"`, and the following prompt. The coordinator waits for the report.
@@ -198,25 +207,21 @@ Ready: {N} stories — {comma-separated story numbers}
 Blocked: {N} stories (if any)
 ```
 
-After Phase 0 completes, **expand the task list** — mark Phase 0 `completed`, then add the remaining tasks using TaskCreate:
+After Phase 0 completes, **update the task list**:
+
+1. Mark `Phase 0: Dependency graph` → `completed`
+2. Mark `Phase 1: Story selection` → `completed` (it is already done by this point)
+3. Delete the five generic `Phase 2: Step N` tasks created at startup, then add story-specific replacements using TaskCreate — one set per selected story:
 
 ```
-[completed] Phase 0: Dependency graph          ← already done
-[ ] Phase 1: Story selection                   ← mark completed immediately
 [ ] Phase 2 | Story {N}: Step 1 — Create story ← one set per selected story
 [ ] Phase 2 | Story {N}: Step 2 — Develop
 [ ] Phase 2 | Story {N}: Step 3 — Code review
 [ ] Phase 2 | Story {N}: Step 4 — PR & CI
 [ ] Phase 2 | Story {N}: Step 5 — PR review
-[ ] Phase 3: Auto-merge                        ← always create; see below
-[ ] Phase 4: Batch summary & continuation
 ```
 
-Mark Phase 1 `completed` immediately after creating it (it is already done by this point). Update each story step task to `in_progress` when its subagent is spawned, and `completed` (or `failed`) when it reports back. Update Phase 3 and Phase 4 tasks similarly as they execute.
-
-**Phase 3 task visibility rule:** Always create the Phase 3 task so it is explicit in the task list. Apply the title based on `AUTO_PR_MERGE`:
-- `AUTO_PR_MERGE=false` → create as `[completed] Phase 3: Auto-merge — skipped (AUTO_PR_MERGE=false)` immediately (mark completed on creation)
-- `AUTO_PR_MERGE=true` → create as `[ ] Phase 3: Auto-merge` and run normally
+Phase 3 and Phase 4 tasks were already created at startup — do not recreate them. Update each story step task to `in_progress` when its subagent is spawned, and `completed` (or `failed`) when it reports back. Update Phase 3 and Phase 4 tasks similarly as they execute.
 
 ---
 
@@ -460,11 +465,11 @@ After all batch stories complete Phase 2, merge every successful story's PR into
 Coordinator prints immediately — no file reads, formats from Phase 2 step results:
 
 ```
-Story   | Step 1 | Step 2 | Step 3 | Step 4 | Result
---------|--------|--------|--------|--------|-------
-9.1     |   OK   |   OK   |   OK   |   OK   | PR #142
-9.2     |   OK   |   OK   |  FAIL  |   --   | Review failed: ...
-9.3     |   OK   |   OK   |   OK   |   OK   | PR #143
+Story   | Step 1 | Step 2 | Step 3 | Step 4 | Step 5 | Result
+--------|--------|--------|--------|--------|--------|-------
+9.1     |   OK   |   OK   |   OK   |   OK   |   OK   | PR #142
+9.2     |   OK   |   OK   |  FAIL  |   --   |   --   | Review failed: ...
+9.3     |   OK   |   OK   |   OK   |   OK   |   OK   | PR #143
 ```
 
 If arriving from Phase 1 with no ready stories:
@@ -506,10 +511,10 @@ Using the assessment report:
    📣 **Notify:** `🎉 Epic {current_epic_name} complete! Running retrospective in {RETRO_TIMER_SECONDS ÷ 60} min...`
 2. Start a timer using the **[Timer Pattern](references/timer-pattern.md)** with:
    - **Duration:** `RETRO_TIMER_SECONDS`
-   - **Fire prompt:** `"BAD_RETRO_TIMER_FIRED — The retrospective countdown has elapsed. Auto-run the retrospective: spawn a MODEL_DEV subagent (yolo mode) to run /bmad-retrospective, accept all changes. Run Pre-Continuation Checks after it completes, then proceed to Phase 4 Step 3."`
+   - **Fire prompt:** `"BAD_RETRO_TIMER_FIRED — The retrospective countdown has elapsed. Auto-run the retrospective: spawn a MODEL_STANDARD subagent (yolo mode) to run /bmad-retrospective, accept all changes. Run Pre-Continuation Checks after it completes, then proceed to Phase 4 Step 3."`
    - **[C] label:** `Run retrospective now`
    - **[S] label:** `Skip retrospective`
-   - **[C] / FIRED action:** Spawn MODEL_DEV subagent (yolo mode) to run `/bmad-retrospective`. Accept all changes. Run Pre-Continuation Checks after.
+   - **[C] / FIRED action:** Spawn MODEL_STANDARD subagent (yolo mode) to run `/bmad-retrospective`. Accept all changes. Run Pre-Continuation Checks after.
    - **[S] action:** Skip retrospective.
 3. Proceed to Step 3 after the retrospective decision resolves.
 
@@ -531,11 +536,7 @@ Using the assessment report from Step 2, follow the applicable branch:
 2. Start the wait using the **[Monitor Pattern](references/monitor-pattern.md)** (when `MONITOR_SUPPORT=true`) or the **[Timer Pattern](references/timer-pattern.md)** (when `MONITOR_SUPPORT=false`):
 
    **If `MONITOR_SUPPORT=true` — Monitor + CronCreate fallback:**
-   - Start Monitor with a PR-merge watcher script:
-       ```bash
-       while true; do gh pr list --json number,mergedAt --jq '.[] | select(.mergedAt != null) | "MERGED: #\(.number)"'; sleep 60; done
-       ```
-     Save the Monitor handle as `PR_MONITOR`.
+   - Fill in `BATCH_PRS` from the Phase 0 pending-PR report (space-separated numbers, e.g. `"101 102 103"`). Use the PR-merge watcher script from [monitor-pattern.md](references/monitor-pattern.md) with that value substituted. Save the Monitor handle as `PR_MONITOR`.
    - Also start a CronCreate fallback timer using the [Timer Pattern](references/timer-pattern.md) with:
      - **Duration:** `WAIT_TIMER_SECONDS`
      - **Fire prompt:** `"BAD_WAIT_TIMER_FIRED — Max wait elapsed. Stop PR_MONITOR, run Pre-Continuation Checks, then re-run Phase 0."`
@@ -543,7 +544,8 @@ Using the assessment report from Step 2, follow the applicable branch:
      - **[S] label:** `Stop BAD`
      - **[C] / FIRED action:** Stop `PR_MONITOR`, run Pre-Continuation Checks, then re-run Phase 0.
      - **[S] action:** Stop `PR_MONITOR`, CronDelete, stop BAD, print final summary, and 📣 **Notify:** `🛑 BAD stopped by user.`
-   - **On Monitor event (merge detected):** CronDelete the fallback timer, stop `PR_MONITOR`, run Pre-Continuation Checks, re-run Phase 0.
+   - **On `MERGED: #N` event:** log progress — `✅ PR #N merged — waiting for remaining batch PRs`; keep `PR_MONITOR` running.
+   - **On `ALL_MERGED` event:** CronDelete the fallback timer, stop `PR_MONITOR`, run Pre-Continuation Checks, re-run Phase 0.
    - 📣 **Notify:** `⏳ Watching for PR merges (max wait: {WAIT_TIMER_SECONDS ÷ 60} min)...`
 
    **If `MONITOR_SUPPORT=false` — Timer only:**

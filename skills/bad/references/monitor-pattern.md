@@ -28,17 +28,36 @@ React to each output line:
 
 ## PR-merge watching (Phase 4 Branch B)
 
+The coordinator fills in `BATCH_PRS` (space-separated PR numbers from the Phase 0 pending-PR report) before starting Monitor.
+
 Poll script (run by the coordinator):
 ```bash
+BATCH_PRS="101 102 103"   # coordinator replaces with actual pending PR numbers
+ALREADY_REPORTED=""
 while true; do
-  gh pr list --json number,mergedAt \
-    --jq '.[] | select(.mergedAt != null) | "MERGED: #\(.number)"'
+  MERGED_NOW=$(cd /path/to/repo && gh pr list --state merged --json number \
+    --jq '.[].number' 2>/dev/null | tr '\n' ' ' || echo "")
+  ALL_DONE=true
+  for PR in $BATCH_PRS; do
+    if echo " $MERGED_NOW " | grep -q " $PR "; then
+      if ! echo " $ALREADY_REPORTED " | grep -q " $PR "; then
+        echo "MERGED: #$PR"
+        ALREADY_REPORTED="$ALREADY_REPORTED $PR"
+      fi
+    else
+      ALL_DONE=false
+    fi
+  done
+  [ "$ALL_DONE" = "true" ] && echo "ALL_MERGED" && break
   sleep 60
 done
 ```
 
+> **Note:** Replace `/path/to/repo` with the absolute path to the project repository. Two common mistakes: (1) `gh pr list` defaults to `--state open` — merged PRs are invisible without `--state merged`; (2) `gh` has no `-C` flag (unlike `git`) — use `cd` instead.
+
 React to each output line:
-- `MERGED: #N` → CronDelete the fallback timer, stop Monitor, run Pre-Continuation Checks, re-run Phase 0
+- `MERGED: #N` → log progress (e.g. `✅ PR #N merged — waiting for remaining batch PRs`); keep Monitor running
+- `ALL_MERGED` → CronDelete the fallback timer, stop Monitor, run Pre-Continuation Checks, re-run Phase 0
 
 ## If `MONITOR_SUPPORT=false`
 

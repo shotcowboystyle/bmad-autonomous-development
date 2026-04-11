@@ -45,7 +45,7 @@ You are working in the worktree at `{repo_root}/{WORKTREE_BASE_PATH}/story-{numb
    - If checks show `pending` still (e.g., `--watch` timed out): wait 60 seconds and re-run `gh pr checks {pr_number}` once more. If still pending after the retry, report and stop.
    - Only proceed to step 4 when every check shows `pass` or `success`.
 
-   > **Why this matters:** Phase 4 runs after Step 4, which may have seen CI green at PR-creation time. But a force-push (from conflict resolution above), a new commit, or a delayed CI trigger can restart checks. Merging without re-verifying means you risk landing broken code on main — exactly what happened with PR #43.
+   > **Why this matters:** Phase 3 (auto-merge) runs after Step 4 (PR & CI), which may have seen CI green at PR-creation time. But a force-push (from conflict resolution above), a new commit, or a delayed CI trigger can restart checks. Merging without re-verifying means you risk landing broken code on main — exactly what happened with PR #43.
 
 4. **Merge the PR** using squash strategy:
    ```bash
