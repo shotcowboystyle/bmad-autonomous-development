@@ -34,6 +34,14 @@ Then run setup in your project:
 
 ## Usage
 
+BAD spawns subagents for every step of the pipeline. For the full autonomous experience — no permission prompts — start Claude Code with:
+
+```bash
+claude --dangerously-skip-permissions
+```
+
+Then run:
+
 ```
 /bad
 ```
