@@ -56,7 +56,8 @@ Once your epics and stories are planned, BAD takes over:
    - **Step 1** *(`MODEL_STANDARD` subagent)* — `bmad-create-story`: generates and validates the story spec
    - **Step 2** *(`MODEL_STANDARD` subagent)* — `bmad-dev-story`: implements the code
    - **Step 3** *(`MODEL_QUALITY` subagent)* — `bmad-code-review`: reviews and fixes the implementation
-   - **Step 4** *(`MODEL_STANDARD` subagent)* — commit, push, open PR, monitor CI, fix any failing checks, resolve code review comments, and resolve merge conflicts
+   - **Step 4** *(`MODEL_STANDARD` subagent)* — commit, push, open PR, monitor CI, fix any failing checks
+   - **Step 5** *(`MODEL_STANDARD` subagent)* — PR code review: reviews diff, applies fixes, pushes clean
 4. *(`MODEL_STANDARD` subagent)* Optionally auto-merges batch PRs sequentially (lowest story number first), resolving any conflicts
 5. Waits, then loops back for the next batch — until the entire sprint is done
 
@@ -76,6 +77,7 @@ BAD is configured at install time (`/bad setup`) and stores settings in `_bmad/b
 | `RETRO_TIMER_SECONDS` | `retro_timer_seconds` | `600` | Seconds before auto-retrospective after epic completion |
 | `CONTEXT_COMPACTION_THRESHOLD` | `context_compaction_threshold` | `80` | Context window % at which to compact context |
 | `TIMER_SUPPORT` | `timer_support` | `true` | Use native platform timers; `false` for prompt-based continuation |
+| `MONITOR_SUPPORT` | `monitor_support` | `true` | Use the Monitor tool for CI/PR-merge polling; `false` for Bedrock/Vertex/Foundry |
 | `API_FIVE_HOUR_THRESHOLD` | `api_five_hour_threshold` | `80` | (Claude Code) 5-hour usage % at which to pause |
 | `API_SEVEN_DAY_THRESHOLD` | `api_seven_day_threshold` | `95` | (Claude Code) 7-day usage % at which to pause |
 | `API_USAGE_THRESHOLD` | `api_usage_threshold` | `80` | (Other harnesses) Generic usage % at which to pause |

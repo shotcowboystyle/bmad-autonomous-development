@@ -16,7 +16,8 @@ Once your epics and stories are planned, BAD takes over:
    - **Step 1** *(`MODEL_STANDARD` subagent)* — `bmad-create-story`: generates and validates the story spec
    - **Step 2** *(`MODEL_STANDARD` subagent)* — `bmad-dev-story`: implements the code
    - **Step 3** *(`MODEL_QUALITY` subagent)* — `bmad-code-review`: reviews and fixes the implementation
-   - **Step 4** *(`MODEL_STANDARD` subagent)* — commit, push, open PR, monitor CI, fix any failing checks, resolve code review comments, and resolve merge conflicts
+   - **Step 4** *(`MODEL_STANDARD` subagent)* — commit, push, open PR, monitor CI, fix any failing checks
+   - **Step 5** *(`MODEL_STANDARD` subagent)* — PR code review: reviews diff, applies fixes, pushes clean
 4. *(`MODEL_STANDARD` subagent)* Optionally auto-merges batch PRs sequentially (lowest story number first), resolving any conflicts
 5. Waits, then loops back for the next batch — until the entire sprint is done
 
@@ -72,6 +73,9 @@ BAD is configured at install time (`/bad setup`) and stores settings in `_bmad/b
 | `RUN_CI_LOCALLY` | `false` | Run CI locally instead of GitHub Actions |
 | `WAIT_TIMER_SECONDS` | `3600` | Wait between batches |
 | `RETRO_TIMER_SECONDS` | `600` | Delay before auto-retrospective |
+| `CONTEXT_COMPACTION_THRESHOLD` | `80` | Context window % at which to compact context |
+| `TIMER_SUPPORT` | `true` | Use native platform timers; `false` for prompt-based continuation |
+| `MONITOR_SUPPORT` | `true` | Use the Monitor tool for CI/PR-merge polling; `false` for Bedrock/Vertex/Foundry |
 
 ## Agent Harness Support
 
