@@ -32,7 +32,7 @@ Save the returned job ID as `JOB_ID`.
 > - **[X] Exit** — {X label}  ← omit this line if no [X] label was supplied
 > - **[M] {N} Modify timer to {N} minutes** — shorten or extend the countdown
 
-📣 **Notify** (see `references/notify-pattern.md`) with the same options so the user can respond from their device:
+📣 **Notify** (see `references/coordinator/pattern-notify.md`) with the same options so the user can respond from their device:
 ```
 ⏱ Timer set — {N} minutes (job: {JOB_ID})
 
@@ -75,7 +75,7 @@ Save `TIMER_START=$(date +%s)`. No native timer is created — print the options
 > - **[X] Exit** — {X label}  ← omit this line if no [X] label was supplied
 > - **[M] N** — remind me after N minutes (reply with `[M] <minutes>`)
 
-📣 **Notify** (see `references/notify-pattern.md`) with the same options.
+📣 **Notify** (see `references/coordinator/pattern-notify.md`) with the same options.
 
 On any human reply, print elapsed time first:
 ```bash

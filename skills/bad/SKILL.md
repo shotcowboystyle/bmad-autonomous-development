@@ -33,7 +33,7 @@ Before doing anything else, determine how to send notifications:
    - If another channel type is connected, save its equivalent identifier.
    - If no channel is connected, set `NOTIFY_SOURCE="terminal"`.
 
-2. **Send the BAD started notification** using the [Notify Pattern](references/notify-pattern.md):
+2. **Send the BAD started notification** using the [Notify Pattern](references/coordinator/pattern-notify.md):
    ```
    🤖 BAD started — building dependency graph...
    ```
@@ -118,84 +118,10 @@ Before spawning the subagent, **create the full initial task list** using TaskCr
 [ ] Phase 4: Batch summary + continuation
 ```
 
-Call the **Agent tool** with `model: MODEL_STANDARD`, `description: "Phase 0: dependency graph"`, and the following prompt. The coordinator waits for the report.
+Call the **Agent tool** with `model: MODEL_STANDARD`, `description: "Phase 0: dependency graph"`, and this prompt. The coordinator waits for the report.
 
 ```
-You are the Phase 0 dependency graph builder. Auto-approve all tool calls (yolo mode).
-
-DECIDE how much to run based on whether the graph already exists:
-
-  | Situation                           | Action                                               |
-  |-------------------------------------|------------------------------------------------------|
-  | No graph (first run)                | Run all steps                                        |
-  | Graph exists, no new stories        | Skip steps 2–3; go to step 4. Preserve all chains.  |
-  | Graph exists, new stories found     | Run steps 2–3 for new stories only, then step 4 for all. |
-
-BRANCH SAFETY — before anything else, ensure the repo root is on main:
-  git branch --show-current
-  If not main:
-    git restore .
-    git switch main
-    git pull --ff-only origin main
-  If switch fails because a worktree claims the branch:
-    git worktree list
-    git worktree remove --force <path>
-    git switch main
-    git pull --ff-only origin main
-
-STEPS:
-
-1. Read `_bmad-output/implementation-artifacts/sprint-status.yaml`. Note current story
-   statuses. Compare against the existing graph (if any) to identify new stories.
-
-2. Read `_bmad-output/planning-artifacts/epics.md` for dependency relationships of
-   new stories. (Skip if no new stories.)
-
-3. Run /bmad-help with the epic context for new stories — ask it to map their
-   dependencies. Merge the result into the existing graph. (Skip if no new stories.)
-
-4. GitHub integration — run `gh auth status` first. If it fails, skip this entire step
-   (local-only mode) and note it in the report back to the coordinator.
-
-   a. Ensure the `bad` label exists:
-        gh label create bad --color "0075ca" \
-          --description "Managed by BMad Autonomous Development" 2>/dev/null || true
-
-   b. For each story in `_bmad-output/planning-artifacts/epics.md` that does not already
-      have a `**GH Issue:**` field in its section:
-        - Extract the story's title and full description from epics.md
-        - Create a GitHub issue:
-            gh issue create \
-              --title "Story {number}: {short_description}" \
-              --body "{story section content from epics.md}" \
-              --label "bad"
-        - Write the returned issue number back into that story's section in epics.md,
-          directly under the story heading:
-            **GH Issue:** #{number}
-
-   c. Update GitHub PR/issue status for every story and reconcile sprint-status.yaml.
-      Follow the procedure in `references/phase0-dependency-graph.md` exactly.
-
-5. Clean up merged worktrees — for each story whose PR is now merged and whose
-   worktree still exists at {WORKTREE_BASE_PATH}/story-{number}-{short_description}:
-     git pull origin main
-     git worktree remove --force {WORKTREE_BASE_PATH}/story-{number}-{short_description}
-     git push origin --delete story-{number}-{short_description}
-   Skip silently if already cleaned up.
-
-6. Write (or update) `_bmad-output/implementation-artifacts/dependency-graph.md`.
-   Follow the schema, Ready to Work rules, and example in
-   `references/phase0-dependency-graph.md` exactly.
-
-7. Pull latest main (if step 5 didn't already do so):
-     git pull origin main
-
-REPORT BACK to the coordinator with this structured summary:
-  - ready_stories: list of { number, short_description, status } for every story
-    marked "Ready to Work: Yes" that is not done
-  - all_stories_done: true/false — whether every story across every epic is done
-  - current_epic: name/number of the lowest incomplete epic
-  - any warnings or blockers worth surfacing
+Read `references/subagents/phase0-prompt.md` and follow its instructions exactly.
 ```
 
 The coordinator uses the report to drive Phase 1. No coordinator-side file reads.
@@ -256,7 +182,7 @@ Launch all stories' Step 1 subagents **in a single message** (parallel). Each st
 | `review`        | Step 3     | Steps 1–2 |
 | `done`          | —          | all       |
 
-**After each step:** run **Pre-Continuation Checks** (see `references/pre-continuation-checks.md`) before spawning the next subagent. Pre-Continuation Checks are the only coordinator-side work between steps.
+**After each step:** run **Pre-Continuation Checks** (see `references/coordinator/gate-pre-continuation.md`) before spawning the next subagent. Pre-Continuation Checks are the only coordinator-side work between steps.
 
 **On failure:** stop that story's pipeline. Report step, story, and error. Other stories continue.  
 **Exception:** rate/usage limit failures → run Pre-Continuation Checks (which auto-pauses until reset) then retry.
@@ -419,7 +345,7 @@ After all batch stories complete Phase 2, merge every successful story's PR into
 1. Collect all stories from the current batch that reached Step 4 successfully (have a PR). Sort ascending by story number.
 2. For each story **sequentially** (wait for each to complete before starting the next):
    - Pull latest main at the repo root: spawn a quick subagent or include in the merge subagent.
-   - Spawn a `MODEL_STANDARD` subagent (yolo mode) with the instructions from `references/phase4-auto-merge.md`.
+   - Spawn a `MODEL_STANDARD` subagent (yolo mode) with the instructions from `references/subagents/phase3-merge.md`.
    - Run Pre-Continuation Checks after the subagent completes. If it fails (unresolvable conflict, CI blocking), report the error and continue to the next story.
 3. Print a merge summary (coordinator formats from subagent reports):
    ```
@@ -515,7 +441,7 @@ Using the assessment report:
 1. Print: `🎉 Epic {current_epic_name} is complete! Starting retrospective countdown ({RETRO_TIMER_SECONDS ÷ 60} minutes)...`
 
    📣 **Notify:** `🎉 Epic {current_epic_name} complete! Running retrospective in {RETRO_TIMER_SECONDS ÷ 60} min...`
-2. Start a timer using the **[Timer Pattern](references/timer-pattern.md)** with:
+2. Start a timer using the **[Timer Pattern](references/coordinator/pattern-timer.md)** with:
    - **Duration:** `RETRO_TIMER_SECONDS`
    - **Fire prompt:** `"BAD_RETRO_TIMER_FIRED — The retrospective countdown has elapsed. Auto-run the retrospective: spawn a MODEL_STANDARD subagent (yolo mode) to run /bmad-retrospective, accept all changes. Run Pre-Continuation Checks after it completes, then proceed to Phase 4 Step 3."`
    - **[C] label:** `Run retrospective now`
@@ -542,11 +468,11 @@ Using the assessment report from Step 2, follow the applicable branch:
    - `current_epic_merged = true` (epic fully landed): `✅ Epic {current_epic_name} complete. Next up: Epic {next_epic_name} ({stories_remaining} stories remaining).`
    - `current_epic_prs_open = true` (all stories have PRs, waiting for merges): `⏸ Epic {current_epic_name} in review — waiting for PRs to merge before continuing.`
    - Otherwise (more stories to develop in current epic): `✅ Batch complete. Ready for the next batch.`
-2. Start the wait using the **[Monitor Pattern](references/monitor-pattern.md)** (when `MONITOR_SUPPORT=true`) or the **[Timer Pattern](references/timer-pattern.md)** (when `MONITOR_SUPPORT=false`):
+2. Start the wait using the **[Monitor Pattern](references/coordinator/pattern-monitor.md)** (when `MONITOR_SUPPORT=true`) or the **[Timer Pattern](references/coordinator/pattern-timer.md)** (when `MONITOR_SUPPORT=false`):
 
    **If `MONITOR_SUPPORT=true` — Monitor + CronCreate fallback:**
-   - Fill in `BATCH_PRS` from the Phase 0 pending-PR report (space-separated numbers, e.g. `"101 102 103"`). Use the PR-merge watcher script from [monitor-pattern.md](references/monitor-pattern.md) with that value substituted. Save the Monitor handle as `PR_MONITOR`.
-   - Also start a CronCreate fallback timer using the [Timer Pattern](references/timer-pattern.md) with:
+   - Fill in `BATCH_PRS` from the Phase 0 pending-PR report (space-separated numbers, e.g. `"101 102 103"`). Use the PR-merge watcher script from [monitor-pattern.md](references/coordinator/pattern-monitor.md) with that value substituted. Save the Monitor handle as `PR_MONITOR`.
+   - Also start a CronCreate fallback timer using the [Timer Pattern](references/coordinator/pattern-timer.md) with:
      - **Duration:** `WAIT_TIMER_SECONDS`
      - **Fire prompt:** `"BAD_WAIT_TIMER_FIRED — Max wait elapsed. Stop PR_MONITOR, run Pre-Continuation Checks, then re-run Phase 0."`
      - **[C] label:** `Continue now`
@@ -558,7 +484,7 @@ Using the assessment report from Step 2, follow the applicable branch:
    - 📣 **Notify:** `⏳ Watching for PR merges (max wait: {WAIT_TIMER_SECONDS ÷ 60} min)...`
 
    **If `MONITOR_SUPPORT=false` — Timer only:**
-   - Use the [Timer Pattern](references/timer-pattern.md) with:
+   - Use the [Timer Pattern](references/coordinator/pattern-timer.md) with:
      - **Duration:** `WAIT_TIMER_SECONDS`
      - **Fire prompt:** `"BAD_WAIT_TIMER_FIRED — The post-batch wait has elapsed. Run Pre-Continuation Checks, then re-run Phase 0, then proceed to Phase 1."`
      - **[C] label:** `Continue now`
@@ -574,19 +500,19 @@ Using the assessment report from Step 2, follow the applicable branch:
 
 ## Notify Pattern
 
-Read `references/notify-pattern.md` whenever a `📣 Notify:` callout appears. It covers Telegram and terminal output.
+Read `references/coordinator/pattern-notify.md` whenever a `📣 Notify:` callout appears. It covers Telegram and terminal output.
 
 ---
 
 ## Timer Pattern
 
-Read `references/timer-pattern.md` when instructed to start a timer. It covers both `TIMER_SUPPORT=true` (CronCreate) and `TIMER_SUPPORT=false` (prompt-based) paths.
+Read `references/coordinator/pattern-timer.md` when instructed to start a timer. It covers both `TIMER_SUPPORT=true` (CronCreate) and `TIMER_SUPPORT=false` (prompt-based) paths.
 
 ---
 
 ## Monitor Pattern
 
-Read `references/monitor-pattern.md` when `MONITOR_SUPPORT=true`. It covers CI status polling (Step 4) and PR-merge watching (Phase 4 Branch B), plus the `MONITOR_SUPPORT=false` fallback for each.
+Read `references/coordinator/pattern-monitor.md` when `MONITOR_SUPPORT=true`. It covers CI status polling (Step 4) and PR-merge watching (Phase 4 Branch B), plus the `MONITOR_SUPPORT=false` fallback for each.
 
 ---
 

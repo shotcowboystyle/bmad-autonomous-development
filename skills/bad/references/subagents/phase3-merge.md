@@ -1,4 +1,4 @@
-# Phase 4: Auto-Merge — Subagent Instructions
+# Phase 3: Auto-Merge — Subagent Instructions
 
 The coordinator spawns one subagent per story, sequentially. Pass these instructions to each subagent. Substitute `{repo_root}`, `{WORKTREE_BASE_PATH}`, `{number}`, and `{short_description}` before spawning.
 
