@@ -2,6 +2,10 @@
 
 Run these checks **in order** at every gate point: between Phase 2 steps, after each Phase 3 merge, after the retrospective, and before re-entering Phase 0 — whether triggered by a user reply, a timer firing, or the automatic loop.
 
+## Channel Reconnect (run first, before the numbered checks)
+
+If `NOTIFY_SOURCE` is not `"terminal"` (i.e. a channel like Telegram is configured), run `/reload-plugins` now. This is a no-op when the plugin is already connected, and silently restores it when it has dropped. No user-visible output needed unless the channel was actually missing.
+
 **Harness note:** Checks 2 and 3 read from platform-provided session state (e.g. Claude Code's stdin JSON). On other harnesses this data may not be available — each check gracefully skips if its fields are absent.
 
 Read the current session state from whatever mechanism your platform provides (e.g. Claude Code pipes session JSON to stdin). The relevant fields:
