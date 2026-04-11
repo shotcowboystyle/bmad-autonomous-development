@@ -50,8 +50,8 @@ Load base values from the `bad` section of `_bmad/config.yaml` at startup. Then 
 |----------|-----------|---------|-------------|
 | `MAX_PARALLEL_STORIES` | `max_parallel_stories` | `3` | Max stories to run in a single batch |
 | `WORKTREE_BASE_PATH` | `worktree_base_path` | `.worktrees` | Root directory for git worktrees |
-| `MODEL_STANDARD` | `model_standard` | `sonnet` | Model for Steps 1, 2, 4, 5 and Phase 3 (auto-merge) |
-| `MODEL_QUALITY` | `model_quality` | `opus` | Model for Step 3 (code review) |
+| `MODEL_STANDARD` | `model_standard` | `sonnet` | Model for Steps 1, 2, 3, 4, 6, 7 and Phase 3 (auto-merge) |
+| `MODEL_QUALITY` | `model_quality` | `opus` | Model for Step 5 (code review) |
 | `RETRO_TIMER_SECONDS` | `retro_timer_seconds` | `600` | Auto-retrospective countdown after epic completion (10 min) |
 | `WAIT_TIMER_SECONDS` | `wait_timer_seconds` | `3600` | Post-batch wait before re-checking PR status (1 hr) |
 | `CONTEXT_COMPACTION_THRESHOLD` | `context_compaction_threshold` | `80` | Context window % at which to compact/summarise context |
