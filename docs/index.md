@@ -19,6 +19,15 @@ BAD is a [BMad Method](https://docs.bmad-method.org/) module that automates your
      ```bash
      export GITHUB_PERSONAL_ACCESS_TOKEN=$(gh auth token)
      ```
+  4. If running Claude Code with sandbox mode, allow `gh` to reach GitHub's API — add to `.claude/settings.json`:
+     ```json
+     {
+       "sandbox": {
+         ...
+         "enableWeakerNetworkIsolation": true
+       }
+     }
+     ```
 
 ## Installation
 
@@ -60,7 +69,7 @@ Once your epics and stories are planned, BAD takes over:
 
 1. *(`MODEL_STANDARD` subagent)* Builds a dependency graph from your sprint backlog — maps story dependencies, syncs GitHub PR status, and identifies what's ready to work on
 2. Picks ready stories from the graph, respecting epic ordering and dependencies
-3. Runs up to `MAX_PARALLEL_STORIES` stories simultaneously — each in its own isolated git worktree — each through a sequential 4-step pipeline. **Every step runs in a dedicated subagent with a fresh context window**, keeping the coordinator lean and each agent fully focused on its single task:
+3. Runs up to `MAX_PARALLEL_STORIES` stories simultaneously — each in its own isolated git worktree — each through a sequential 5-step pipeline. **Every step runs in a dedicated subagent with a fresh context window**, keeping the coordinator lean and each agent fully focused on its single task:
    - **Step 1** *(`MODEL_STANDARD` subagent)* — `bmad-create-story`: generates and validates the story spec
    - **Step 2** *(`MODEL_STANDARD` subagent)* — `bmad-dev-story`: implements the code
    - **Step 3** *(`MODEL_QUALITY` subagent)* — `bmad-code-review`: reviews and fixes the implementation
@@ -71,7 +80,7 @@ Once your epics and stories are planned, BAD takes over:
 
 ## Configuration
 
-BAD is configured at install time (`/bad setup`) and stores settings in `_bmad/bad/config.yaml`. All values can be overridden at runtime with `KEY=VALUE` args.
+BAD is configured at install time (`/bad setup`) and stores settings in the `bad:` section of `_bmad/config.yaml`. All values can be overridden at runtime with `KEY=VALUE` args.
 
 | Variable | Config Key | Default | Description |
 |---|---|---|---|

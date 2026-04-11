@@ -1,6 +1,6 @@
 # Pre-Continuation Checks
 
-Run these checks **in order** every time you (the coordinator) are about to re-enter Phase 0 — whether triggered by a user reply, a timer firing, or the automatic loop.
+Run these checks **in order** at every gate point: between Phase 2 steps, after each Phase 3 merge, after the retrospective, and before re-entering Phase 0 — whether triggered by a user reply, a timer firing, or the automatic loop.
 
 **Harness note:** Checks 2 and 3 read from platform-provided session state (e.g. Claude Code's stdin JSON). On other harnesses this data may not be available — each check gracefully skips if its fields are absent.
 
@@ -85,4 +85,4 @@ If `rate_limits.seven_day.used_percentage` is present and **> `API_SEVEN_DAY_THR
 
 ---
 
-Only after all applicable checks pass, proceed to re-run Phase 0 in full.
+Only after all applicable checks pass, proceed with the next step (or re-run Phase 0, if that is what triggered this gate).

@@ -2,7 +2,7 @@
 
 Standalone module self-registration for BMad Autonomous Development. This file is loaded when:
 - The user passes `setup`, `configure`, or `install` as an argument
-- The module is not yet registered in `{project-root}/_bmad/bad/config.yaml`
+- The module is not yet registered in `{project-root}/_bmad/config.yaml` (no `bad:` section)
 
 ## Overview
 
