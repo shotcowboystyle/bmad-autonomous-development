@@ -207,21 +207,26 @@ Ready: {N} stories — {comma-separated story numbers}
 Blocked: {N} stories (if any)
 ```
 
-After Phase 0 completes, **update the task list**:
+After Phase 0 completes, **rebuild the task list in correct execution order** — tasks display in creation order, so delete and re-add to ensure Phase 2 story tasks appear before Phase 3 and Phase 4:
 
 1. Mark `Phase 0: Dependency graph` → `completed`
-2. Mark `Phase 1: Story selection` → `completed` (it is already done by this point)
-3. Delete the five generic `Phase 2: Step N` tasks created at startup, then add story-specific replacements using TaskCreate — one set per selected story:
+2. Mark `Phase 1: Story selection` → `completed` (already done)
+3. Delete all seven generic startup tasks: the five `Phase 2: Step N` tasks, `Phase 3: Auto-merge`, and `Phase 4: Batch summary & continuation`
+4. Re-add in execution order using TaskCreate:
 
 ```
-[ ] Phase 2 | Story {N}: Step 1 — Create story ← one set per selected story
+[ ] Phase 2 | Story {N}: Step 1 — Create story ← one set per selected story, all stories first
 [ ] Phase 2 | Story {N}: Step 2 — Develop
 [ ] Phase 2 | Story {N}: Step 3 — Code review
 [ ] Phase 2 | Story {N}: Step 4 — PR & CI
 [ ] Phase 2 | Story {N}: Step 5 — PR review
+                                               ← repeat for each story in the batch
+[ ] Phase 3: Auto-merge                        ← if AUTO_PR_MERGE=true
+[completed] Phase 3: Auto-merge — skipped (AUTO_PR_MERGE=false)  ← if AUTO_PR_MERGE=false
+[ ] Phase 4: Batch summary & continuation
 ```
 
-Phase 3 and Phase 4 tasks were already created at startup — do not recreate them. Update each story step task to `in_progress` when its subagent is spawned, and `completed` (or `failed`) when it reports back. Update Phase 3 and Phase 4 tasks similarly as they execute.
+Update each story step task to `in_progress` when its subagent is spawned, and `completed` (or `failed`) when it reports back. Update Phase 3 and Phase 4 tasks similarly as they execute.
 
 ---
 
