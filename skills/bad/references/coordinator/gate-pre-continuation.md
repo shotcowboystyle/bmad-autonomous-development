@@ -6,17 +6,23 @@ Run these checks **in order** at every gate point: between Phase 2 steps, after 
 
 If `NOTIFY_SOURCE` is not `"terminal"` (i.e. a channel like Telegram is configured), run `/reload-plugins` now. This is a no-op when the plugin is already connected, and silently restores it when it has dropped. No user-visible output needed unless the channel was actually missing.
 
-**Harness note:** Checks 2 and 3 read from platform-provided session state (e.g. Claude Code's stdin JSON). On other harnesses this data may not be available — each check gracefully skips if its fields are absent.
+**Harness note:** Checks 2 and 3 require session state data. On Claude Code, this is available via the session-state hook installed by `/bad setup` (Step 2b). On other harnesses this data may not be available — each check gracefully skips if its fields are absent.
 
-Read the current session state from whatever mechanism your platform provides (e.g. Claude Code pipes session JSON to stdin). The relevant fields:
+Read the current session state using the Bash tool:
+
+```bash
+cat "${TMPDIR:-/tmp}/bad-session-state.json" 2>/dev/null || echo "{}"
+```
+
+Parse the output as JSON. The relevant fields:
 
 - `context_window.used_percentage` — 0–100, percentage of context window consumed (treat null as 0)
-- `rate_limits.five_hour.used_percentage` — 0–100 (Claude Code: Pro/Max subscribers only)
+- `rate_limits.five_hour.used_percentage` — 0–100 (Claude Code Pro/Max only)
 - `rate_limits.five_hour.resets_at` — Unix epoch seconds when the 5-hour window resets
 - `rate_limits.seven_day.used_percentage` — 0–100 (Claude Code only)
 - `rate_limits.seven_day.resets_at` — Unix epoch seconds when the 7-day window resets
 
-Each field may be independently absent. If absent, skip the corresponding check.
+Each field may be independently absent. If the file does not exist or a field is absent, skip the corresponding check.
 
 ---
 
