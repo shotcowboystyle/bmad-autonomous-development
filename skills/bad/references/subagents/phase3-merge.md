@@ -2,6 +2,8 @@
 
 The coordinator spawns one subagent per story, sequentially. Pass these instructions to each subagent. Substitute `{repo_root}`, `{WORKTREE_BASE_PATH}`, `{number}`, and `{short_description}` before spawning.
 
+> **gh fallback:** If any `gh` command fails, read `references/coordinator/pattern-gh-curl-fallback.md` for curl equivalents. Note: `gh pr merge` has no curl fallback — if unavailable, report the failure and ask the user to merge manually.
+
 ---
 
 ## Subagent Instructions

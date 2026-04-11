@@ -287,8 +287,10 @@ Auto-approve all tool calls (yolo mode).
        - conclusion=success → stop Monitor, report success
        - conclusion=failure or cancelled → stop Monitor, diagnose, fix, push, restart Monitor
        - Billing/spending limit error in output → stop Monitor, run Local CI Fallback
+       - gh TLS/auth error in output → stop Monitor, switch to curl poller from `references/coordinator/pattern-gh-curl-fallback.md`
    - Otherwise → poll manually in a loop:
        gh run view
+     (If `gh` fails, use `gh run view` curl equivalent from `references/coordinator/pattern-gh-curl-fallback.md`)
      - Billing/spending limit error → exit loop, run Local CI Fallback
      - CI failed for other reason, or Claude bot left PR comments → fix, push, loop
      - CI green → report success
@@ -513,6 +515,12 @@ Read `references/coordinator/pattern-timer.md` when instructed to start a timer.
 ## Monitor Pattern
 
 Read `references/coordinator/pattern-monitor.md` when `MONITOR_SUPPORT=true`. It covers CI status polling (Step 4) and PR-merge watching (Phase 4 Branch B), plus the `MONITOR_SUPPORT=false` fallback for each.
+
+---
+
+## gh → curl Fallback Pattern
+
+Read `references/coordinator/pattern-gh-curl-fallback.md` when any `gh` command fails (TLS error, sandbox restriction, spending limit, etc.). Pass the path to subagents that run `gh` commands so they can self-recover. Note: `gh pr merge` has no curl fallback — if unavailable, surface the failure to the user.
 
 ---
 

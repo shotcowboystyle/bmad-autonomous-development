@@ -14,6 +14,7 @@ Search by branch name:
 ```bash
 gh pr list --search "story-{number}" --state all --json number,title,state,mergedAt
 ```
+If `gh` fails, read `references/coordinator/pattern-gh-curl-fallback.md` and use the `gh pr list` curl equivalent.
 
 ### GitHub Issue Number Lookup
 
@@ -23,6 +24,7 @@ Resolve in this order:
    ```bash
    gh issue list --search "Story 3.1:" --json number,title,state
    ```
+   If `gh` fails, use the `gh issue list` curl equivalent from `references/coordinator/pattern-gh-curl-fallback.md`.
    Pick the best match by comparing titles.
 3. If still not found, leave the Issue column blank.
 
