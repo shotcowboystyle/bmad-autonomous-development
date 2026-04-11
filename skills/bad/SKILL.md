@@ -208,11 +208,15 @@ After Phase 0 completes, **expand the task list** — mark Phase 0 `completed`, 
 [ ] Phase 2 | Story {N}: Step 3 — Code review
 [ ] Phase 2 | Story {N}: Step 4 — PR & CI
 [ ] Phase 2 | Story {N}: Step 5 — PR review
-[ ] Phase 3: Auto-merge (if AUTO_PR_MERGE=true)
+[ ] Phase 3: Auto-merge                        ← always create; see below
 [ ] Phase 4: Batch summary & continuation
 ```
 
 Mark Phase 1 `completed` immediately after creating it (it is already done by this point). Update each story step task to `in_progress` when its subagent is spawned, and `completed` (or `failed`) when it reports back. Update Phase 3 and Phase 4 tasks similarly as they execute.
+
+**Phase 3 task visibility rule:** Always create the Phase 3 task so it is explicit in the task list. Apply the title based on `AUTO_PR_MERGE`:
+- `AUTO_PR_MERGE=false` → create as `[completed] Phase 3: Auto-merge — skipped (AUTO_PR_MERGE=false)` immediately (mark completed on creation)
+- `AUTO_PR_MERGE=true` → create as `[ ] Phase 3: Auto-merge` and run normally
 
 ---
 
