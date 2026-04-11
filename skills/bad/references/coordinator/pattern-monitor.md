@@ -15,8 +15,9 @@ Use this pattern when `MONITOR_SUPPORT=true`. It covers two use cases in BAD: CI
 
 Poll script (run inside the Step 4 subagent):
 ```bash
+GH_BIN="$(command -v gh)"
 while true; do
-  gh run view --json status,conclusion 2>&1
+  "$GH_BIN" run view --json status,conclusion 2>&1
   sleep 30
 done
 ```
@@ -32,10 +33,11 @@ The coordinator fills in `BATCH_PRS` (space-separated PR numbers from the Phase 
 
 Poll script (run by the coordinator):
 ```bash
+GH_BIN="$(command -v gh)"
 BATCH_PRS="101 102 103"   # coordinator replaces with actual pending PR numbers
 ALREADY_REPORTED=""
 while true; do
-  MERGED_NOW=$(cd /path/to/repo && gh pr list --state merged --json number \
+  MERGED_NOW=$(cd /path/to/repo && "$GH_BIN" pr list --state merged --json number \
     --jq '.[].number' 2>/dev/null | tr '\n' ' ' || echo "")
   ALL_DONE=true
   for PR in $BATCH_PRS; do
@@ -53,7 +55,7 @@ while true; do
 done
 ```
 
-> **Note:** Replace `/path/to/repo` with the absolute path to the project repository. Two common mistakes: (1) `gh pr list` defaults to `--state open` — merged PRs are invisible without `--state merged`; (2) `gh` has no `-C` flag (unlike `git`) — use `cd` instead.
+> **Note:** Replace `/path/to/repo` with the absolute path to the project repository. Common mistakes: (1) `gh pr list` defaults to `--state open` — merged PRs are invisible without `--state merged`; (2) `gh` has no `-C` flag (unlike `git`) — use `cd` instead; (3) the Monitor shell inherits a stripped PATH — `gh` must be resolved with `command -v gh` before the script runs, not looked up by name inside it.
 
 React to each output line:
 - `MERGED: #N` → log progress (e.g. `✅ PR #N merged — waiting for remaining batch PRs`); keep Monitor running
