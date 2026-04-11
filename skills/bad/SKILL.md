@@ -111,11 +111,11 @@ Before spawning the subagent, **create the full initial task list** using TaskCr
 [ ] Phase 2: Step 1 — Create story
 [ ] Phase 2: Step 2 — Develop
 [ ] Phase 2: Step 3 — Code review
-[ ] Phase 2: Step 4 — PR & CI
+[ ] Phase 2: Step 4 — PR + CI
 [ ] Phase 2: Step 5 — PR review
 [ ] Phase 3: Auto-merge                                      ← if AUTO_PR_MERGE=true
 [completed] Phase 3: Auto-merge — skipped (AUTO_PR_MERGE=false)  ← if AUTO_PR_MERGE=false
-[ ] Phase 4: Batch summary & continuation
+[ ] Phase 4: Batch summary + continuation
 ```
 
 Call the **Agent tool** with `model: MODEL_STANDARD`, `description: "Phase 0: dependency graph"`, and the following prompt. The coordinator waits for the report.
@@ -218,12 +218,12 @@ After Phase 0 completes, **rebuild the task list in correct execution order** �
 [ ] Phase 2 | Story {N}: Step 1 — Create story ← one set per selected story, all stories first
 [ ] Phase 2 | Story {N}: Step 2 — Develop
 [ ] Phase 2 | Story {N}: Step 3 — Code review
-[ ] Phase 2 | Story {N}: Step 4 — PR & CI
+[ ] Phase 2 | Story {N}: Step 4 — PR + CI
 [ ] Phase 2 | Story {N}: Step 5 — PR review
                                                ← repeat for each story in the batch
 [ ] Phase 3: Auto-merge                        ← if AUTO_PR_MERGE=true
 [completed] Phase 3: Auto-merge — skipped (AUTO_PR_MERGE=false)  ← if AUTO_PR_MERGE=false
-[ ] Phase 4: Batch summary & continuation
+[ ] Phase 4: Batch summary + continuation
 ```
 
 Update each story step task to `in_progress` when its subagent is spawned, and `completed` (or `failed`) when it reports back. Update Phase 3 and Phase 4 tasks similarly as they execute.
