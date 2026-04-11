@@ -427,14 +427,22 @@ Epic completion assessment. Auto-approve all tool calls (yolo mode).
 Read:
   - _bmad-output/planning-artifacts/epics.md
   - _bmad-output/implementation-artifacts/sprint-status.yaml
+  - _bmad-output/implementation-artifacts/dependency-graph.md
+
+Use the dependency graph's PR Status column as the authoritative source for whether a PR is
+merged. sprint-status `done` means the pipeline finished (code review complete) — it does NOT
+mean the PR is merged.
 
 Report back:
-  - current_epic_merged: true/false — every story in the current epic has a merged PR (status `done`)
-  - current_epic_prs_open: true/false — every story in the current epic has a PR (open or merged), but at least one is not yet merged
-  - all_epics_complete: true/false — every story across every epic has a merged PR (status `done`)
+  - current_epic_merged: true/false — every story in the current epic has PR Status = `merged`
+    in the dependency graph
+  - current_epic_prs_open: true/false — every story in the current epic has a PR number in the
+    dependency graph, but at least one PR Status is not `merged`
+  - all_epics_complete: true/false — every story across every epic has PR Status = `merged`
+    in the dependency graph
   - current_epic_name: name/number of the lowest incomplete epic
   - next_epic_name: name/number of the next epic (if any)
-  - stories_remaining: count of non-done stories in the current epic
+  - stories_remaining: count of stories in the current epic whose PR Status is not `merged`
 ```
 
 Using the assessment report:
