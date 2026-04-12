@@ -51,30 +51,7 @@ Ask: **"Install BAD session-state capture (writes rate-limit / context data to a
 
 Default: **yes** (or auto-accept if `--headless` / `accept all defaults`).
 
-If **yes**:
-
-1. Copy `./assets/bad-statusline.sh` to `{project-root}/.claude/bad-statusline.sh`.
-   Make it executable: `chmod +x {project-root}/.claude/bad-statusline.sh`.
-
-2. Read `{project-root}/.claude/settings.json` (create `{}` if absent).
-
-3. Check if a `statusLine` key already exists:
-   - **If absent:** set it to:
-     ```json
-     "statusLine": {
-       "type": "command",
-       "command": ".claude/bad-statusline.sh"
-     }
-     ```
-   - **If already set:** do not overwrite. Instead, print:
-     ```
-     ⚠️  A statusLine is already configured in .claude/settings.json.
-     To enable BAD's session-state capture, chain it manually:
-       1. Open .claude/bad-statusline.sh — it shows how to pipe to an existing script.
-       2. Add .claude/bad-statusline.sh as the last step in your existing statusline pipeline.
-     ```
-
-4. Write the updated `settings.json` back (only if you modified it).
+If **yes**, read and follow `references/coordinator/setup-statusline-hook.md`.
 
 ---
 
