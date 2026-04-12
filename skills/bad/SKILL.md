@@ -211,6 +211,8 @@ Launch all stories' Step 1 subagents **in a single message** (parallel). Each st
 **On failure:** stop that story's pipeline. Report step, story, and error. Other stories continue.  
 **Exception:** rate/usage limit failures → run Pre-Continuation Checks (which auto-pauses until reset) then retry.
 
+**Hung subagents:** when `MONITOR_SUPPORT=true` and the activity log hook is installed (Step 4 of setup), use the [Watchdog Pattern](references/coordinator/pattern-watchdog.md) when spawning Steps 2, 3, 4, and 5 to detect stale agents.
+
 📣 **Notify per story** as each pipeline concludes (Step 7 success or any step failure):
 - Success: `✅ Story {number} done — PR #{pr_number}`
 - Failure: `❌ Story {number} failed at Step {N} — {brief error}`
@@ -580,7 +582,13 @@ Read `references/coordinator/pattern-timer.md` when instructed to start a timer.
 
 ## Monitor Pattern
 
-Read `references/coordinator/pattern-monitor.md` when `MONITOR_SUPPORT=true`. It covers CI status polling (Step 4) and PR-merge watching (Phase 4 Branch B), plus the `MONITOR_SUPPORT=false` fallback for each.
+Read `references/coordinator/pattern-monitor.md` when `MONITOR_SUPPORT=true`. It covers CI status polling (Step 6) and PR-merge watching (Phase 4 Branch B), plus the `MONITOR_SUPPORT=false` fallback for each.
+
+---
+
+## Watchdog Pattern
+
+Read `references/coordinator/pattern-watchdog.md` when `MONITOR_SUPPORT=true` and the activity log hook is installed (Step 4 of setup). Use it before spawning long-running Phase 2 subagents (Steps 2, 3, 4, 5) to detect hung agents via activity log monitoring.
 
 ---
 
@@ -594,7 +602,7 @@ Read `references/coordinator/pattern-gh-curl-fallback.md` when any `gh` command 
 
 1. **Delegate mode only** — never read files, run git/gh commands, or write to disk yourself. The only platform command the coordinator may run directly is context compaction via Pre-Continuation Checks (when `CONTEXT_COMPACTION_THRESHOLD` is exceeded). All other slash commands and operations are delegated to subagents.
 2. **One subagent per step per story** — spawn only after the previous step reports success.
-3. **Sequential steps within a story** — Steps 1→2→3→4→5 run strictly in order.
+3. **Sequential steps within a story** — Steps 1→2→3→4→5→6→7 run strictly in order.
 4. **Parallel stories** — launch all stories' Step 1 in one message (one tool call per story). Phase 3 runs sequentially by design.
 5. **Dependency graph is authoritative** — never pick a story whose dependencies are not fully merged. Use Phase 0's report, not your own file reads.
 6. **Phase 0 runs before every batch** — always after the Phase 4 wait. Always as a fresh subagent.

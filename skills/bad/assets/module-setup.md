@@ -37,7 +37,7 @@ Check for the presence of harness directories at the project root:
 
 Store all detected harnesses. Determine the **current harness** from this skill's own file path — whichever harness directory contains this running skill is the current harness. Use the current harness to drive the question branch in Step 3.
 
-## Step 2b: Session-State Hook (Claude Code only)
+## Step 3: Session-State Hook (Claude Code only)
 
 Skip this step if `claude-code` was not detected in Step 2.
 
@@ -53,9 +53,33 @@ Default: **yes** (or auto-accept if `--headless` / `accept all defaults`).
 
 If **yes**, read and follow `references/coordinator/setup-statusline-hook.md`.
 
+## Step 4: Activity Log Hook (Claude Code only)
+
+Skip this step if `claude-code` was not detected in Step 2.
+
+BAD can log every tool call made by any agent (coordinator or subagent) to per-session files in the Claude session history directory. The coordinator uses these logs with the Monitor watchdog pattern (`references/coordinator/pattern-watchdog.md`) to detect hung subagents without requiring subagents to write their own heartbeats — every natural tool call (`Read`, `Write`, `Bash`, etc.) is captured passively.
+
+Ask: **"Install BAD activity log hook (logs all tool calls for hang detection)? [Y/n]"**
+
+Default: **yes** (or auto-accept if `--headless` / `accept all defaults`).
+
+If **yes**, run:
+
+```bash
+python3 ./scripts/setup-activity-hook.py \
+  --settings-path ".claude/settings.local.json" \
+  --project-root "$(pwd)"
+```
+
+The script:
+- Adds a `PostToolUse` hook to `.claude/settings.local.json` (project-scoped, not global)
+- Writes one TSV line per tool call to `~/.claude/projects/<encoded-project>/bad-logs/<agent-slug>/<session-id>.log`
+- Uses `coordinator` as the slug for the coordinator; worktree basename for story subagents
+- Safe to re-run — uses an anti-zombie pattern to replace any existing BAD hook
+
 ---
 
-## Step 3: Collect Configuration
+## Step 5: Collect Configuration
 
 Show defaults in brackets. Present all values together so the user can respond once with only what they want to change. Never say "press enter" or "leave blank".
 
@@ -80,6 +104,7 @@ Read from `./assets/module.yaml` and present as a grouped block:
 - `wait_timer_seconds` — Seconds to wait between batches before re-checking PR status [3600]
 - `retro_timer_seconds` — Seconds before auto-running retrospective after epic completion [600]
 - `context_compaction_threshold` — Context window % at which to compact/summarise context [80]
+- `stale_timeout_minutes` — Minutes of subagent inactivity before watchdog alerts (0 = disabled) [60]
 
 ### Harness-Specific Config
 
@@ -110,7 +135,7 @@ Present as **"{HarnessName} settings"**:
 
 Automatically write `timer_support: false` and `monitor_support: false` — no prompt needed. BAD will use prompt-based continuation instead of native timers, and manual polling loops instead of the Monitor tool, on this harness.
 
-## Step 4: Write Files
+## Step 6: Write Files
 
 Write a temp JSON file with collected answers structured as:
 ```json
@@ -124,6 +149,7 @@ Write a temp JSON file with collected answers structured as:
     "wait_timer_seconds": "3600",
     "retro_timer_seconds": "600",
     "context_compaction_threshold": "80",
+    "stale_timeout_minutes": "60",
     "timer_support": true,
     "monitor_support": true,
     "model_standard": "sonnet",
@@ -153,13 +179,13 @@ If either exits non-zero, surface the error and stop.
 
 Run `./scripts/merge-config.py --help` or `./scripts/merge-help-csv.py --help` for full usage.
 
-## Step 5: Create Directories
+## Step 7: Create Directories
 
 After writing config, create the worktree base directory at the resolved path of `{project-root}/{worktree_base_path}` if it does not exist. Use the actual resolved path for filesystem operations only — config values must continue to use the literal `{project-root}` token.
 
 Also create `output_folder` and any other `{project-root}/`-prefixed values from the config that don't exist on disk.
 
-## Step 6: Confirm and Greet
+## Step 8: Confirm and Greet
 
 Display what was written: config values set, user settings written, help entries registered, fresh install vs reconfiguration.
 

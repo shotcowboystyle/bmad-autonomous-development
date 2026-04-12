@@ -12,12 +12,14 @@ Once your epics and stories are planned, BAD takes over:
 
 1. *(`MODEL_STANDARD` subagent)* Builds a dependency graph from your sprint backlog — maps story dependencies, syncs GitHub PR status, and identifies what's ready to work on
 2. Picks ready stories from the graph, respecting epic ordering and dependencies
-3. Runs up to `MAX_PARALLEL_STORIES` stories simultaneously — each in its own isolated git worktree — each through a sequential 5-step pipeline:
+3. Runs up to `MAX_PARALLEL_STORIES` stories simultaneously — each in its own isolated git worktree — each through a sequential 7-step pipeline:
    - **Step 1** *(`MODEL_STANDARD` subagent)* — `bmad-create-story`: generates and validates the story spec
-   - **Step 2** *(`MODEL_STANDARD` subagent)* — `bmad-dev-story`: implements the code
-   - **Step 3** *(`MODEL_QUALITY` subagent)* — `bmad-code-review`: reviews and fixes the implementation
-   - **Step 4** *(`MODEL_STANDARD` subagent)* — commit, push, open PR, monitor CI, fix any failing checks
-   - **Step 5** *(`MODEL_STANDARD` subagent)* — PR code review: reviews diff, applies fixes, pushes clean
+   - **Step 2** *(`MODEL_STANDARD` subagent)* — `bmad-testarch-atdd`: generates failing acceptance tests
+   - **Step 3** *(`MODEL_STANDARD` subagent)* — `bmad-dev-story`: implements the code
+   - **Step 4** *(`MODEL_STANDARD` subagent)* — `bmad-testarch-test-review`: reviews test quality, applies fixes
+   - **Step 5** *(`MODEL_QUALITY` subagent)* — `bmad-code-review`: reviews and fixes the implementation
+   - **Step 6** *(`MODEL_STANDARD` subagent)* — commit, push, open PR, monitor CI, fix any failing checks
+   - **Step 7** *(`MODEL_STANDARD` subagent)* — PR code review: reviews diff, applies fixes, pushes clean
 4. *(`MODEL_STANDARD` subagent)* Optionally auto-merges batch PRs sequentially (lowest story number first), resolving any conflicts
 5. Waits, then loops back for the next batch — until the entire sprint is done
 
@@ -91,6 +93,7 @@ BAD is configured at install time (`/bad setup`) and stores settings in the `bad
 | `WAIT_TIMER_SECONDS` | `3600` | Wait between batches |
 | `RETRO_TIMER_SECONDS` | `600` | Delay before auto-retrospective |
 | `CONTEXT_COMPACTION_THRESHOLD` | `80` | Context window % at which to compact context |
+| `STALE_TIMEOUT_MINUTES` | `60` | Minutes of subagent inactivity before watchdog alerts (0 = disabled) |
 | `TIMER_SUPPORT` | `true` | Use native platform timers; `false` for prompt-based continuation |
 | `MONITOR_SUPPORT` | `true` | Use the Monitor tool for CI/PR-merge polling; `false` for Bedrock/Vertex/Foundry |
 | `API_FIVE_HOUR_THRESHOLD` | `80` | (Claude Code) 5-hour usage % at which to pause |
