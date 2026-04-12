@@ -72,6 +72,8 @@ STEPS:
 REPORT BACK to the coordinator with this structured summary:
   - ready_stories: list of { number, short_description, status } for every story
     marked "Ready to Work: Yes" that is not done
+  - pending_prs: space-separated list of open (not yet merged) PR numbers across all
+    stories — used by the coordinator to watch for PR merges in Phase 4 Branch B
   - all_stories_done: true/false — whether every story across every epic is done
   - current_epic: name/number of the lowest incomplete epic
   - any warnings or blockers worth surfacing

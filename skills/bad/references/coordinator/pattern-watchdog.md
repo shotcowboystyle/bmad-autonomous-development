@@ -73,7 +73,7 @@ done
 
 ## Coordinator usage
 
-Before spawning a long-running subagent (Steps 2, 3, 4 are the most likely to hang):
+Before spawning a long-running subagent (Steps 2, 3, 4, 5 are the most likely to hang):
 
 ```
 1. Compute LOG_DIR = ~/.claude/projects/<encoded>/bad-logs/<agent-slug>/

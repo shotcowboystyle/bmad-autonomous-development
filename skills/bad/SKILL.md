@@ -50,7 +50,7 @@ Load base values from the `bad` section of `_bmad/config.yaml` at startup. Then 
 |----------|-----------|---------|-------------|
 | `MAX_PARALLEL_STORIES` | `max_parallel_stories` | `3` | Max stories to run in a single batch |
 | `WORKTREE_BASE_PATH` | `worktree_base_path` | `.worktrees` | Root directory for git worktrees |
-| `MODEL_STANDARD` | `model_standard` | `sonnet` | Model for Steps 1, 2, 3, 4, 6, 7 and Phase 3 (auto-merge) |
+| `MODEL_STANDARD` | `model_standard` | `sonnet` | Model for all subagents except Step 5 (code review): Phase 0, Phase 1 Epic-Start, Steps 1–4 and 6–7, Phase 3 (merge + cleanup), Phase 4 (assessment + retrospective) |
 | `MODEL_QUALITY` | `model_quality` | `opus` | Model for Step 5 (code review) |
 | `RETRO_TIMER_SECONDS` | `retro_timer_seconds` | `600` | Auto-retrospective countdown after epic completion (10 min) |
 | `WAIT_TIMER_SECONDS` | `wait_timer_seconds` | `3600` | Post-batch wait before re-checking PR status (1 hr) |
@@ -355,18 +355,7 @@ Auto-approve all tool calls (yolo mode).
      - CI green → report success
 
 LOCAL CI FALLBACK (when RUN_CI_LOCALLY=true or billing-limited):
-  a. Read all .github/workflows/ files triggered on pull_request events.
-  b. Extract and run shell commands from each run: step in order (respecting
-     working-directory). If any fail, diagnose, fix, and re-run until all pass.
-  c. Commit fixes and push to the PR branch.
-  d. Post a PR comment:
-     ## Test Results (manual — GitHub Actions skipped: billing/spending limit reached)
-     | Check | Status | Notes |
-     |-------|--------|-------|
-     | `<command>` | ✅ Pass / ❌ Fail | e.g. "42 tests passed" |
-     ### Fixes applied
-     - [failure] → [fix]
-     All rows must show ✅ Pass before this step is considered complete.
+  Read `references/subagents/step6-ci-fallback.md` and follow its instructions exactly.
 
 Report: success or failure, and the PR number/URL if opened.
 ```
@@ -426,26 +415,7 @@ After all batch stories complete Phase 2, merge every successful story's PR into
 4. Spawn a **cleanup subagent** (`MODEL_STANDARD`, yolo mode):
    ```
    Post-merge cleanup. Auto-approve all tool calls (yolo mode).
-
-   1. Verify sprint-status.yaml at the repo root has status `done` for all merged stories.
-      Fix any that are missing.
-
-   2. Repo root branch safety check:
-        git branch --show-current
-      If not main:
-        git restore .
-        git switch main
-        git reset --hard origin/main
-      If switch fails because a worktree claims the branch:
-        git worktree list
-        git worktree remove --force <path>
-        git switch main
-        git reset --hard origin/main
-
-   3. Pull main:
-        git pull --ff-only origin main
-
-   Report: done or any errors encountered.
+   Read `references/subagents/phase3-cleanup.md` and follow its instructions exactly.
    ```
 
 ---
@@ -484,32 +454,9 @@ From Phase 2 results, collect the batch stories and their PR numbers (e.g. `8.1 
 Spawn an **assessment subagent** (`MODEL_STANDARD`, yolo mode):
 ```
 Epic completion assessment. Auto-approve all tool calls (yolo mode).
-
 BATCH_STORIES_WITH_PRS: {coordinator substitutes: "story → #PR" pairs from this batch, one per line}
 
-Read:
-  - _bmad-output/planning-artifacts/epics.md
-  - _bmad-output/implementation-artifacts/sprint-status.yaml
-  - _bmad-output/implementation-artifacts/dependency-graph.md
-
-For the stories listed in BATCH_STORIES_WITH_PRS, verify their actual merge status directly
-from GitHub — do not rely solely on the dependency graph for these, as it may be stale:
-  gh pr view {pr_number} --json state,mergedAt
-Treat a PR as `merged` if `state` = `"MERGED"`. Record the real-time result for each.
-
-For all other stories (not in BATCH_STORIES_WITH_PRS), use the dependency graph's PR Status
-column as the authoritative source. sprint-status `done` means the pipeline finished (code
-review complete) — it does NOT mean the PR is merged.
-
-Report back:
-  - current_epic_merged: true/false — every story in the current epic is merged (using
-    real-time status for batch stories, dependency graph for all others)
-  - current_epic_prs_open: true/false — every story in the current epic has a PR number,
-    but at least one is not yet merged
-  - all_epics_complete: true/false — every story across every epic is merged
-  - current_epic_name: name/number of the lowest incomplete epic
-  - next_epic_name: name/number of the next epic (if any)
-  - stories_remaining: count of stories in the current epic that are not yet merged
+Read `references/subagents/phase4-assessment.md` and follow its instructions exactly.
 ```
 
 Using the assessment report:
@@ -609,7 +556,7 @@ Read `references/coordinator/pattern-gh-curl-fallback.md` when any `gh` command 
 
 ## Rules
 
-1. **Delegate mode only** — never read files, run git/gh commands, or write to disk yourself. The only platform command the coordinator may run directly is context compaction via Pre-Continuation Checks (when `CONTEXT_COMPACTION_THRESHOLD` is exceeded). All other slash commands and operations are delegated to subagents.
+1. **Delegate mode only** — never read project files, run git/gh commands, or write to disk yourself. Coordinator-only direct operations are limited to: Pre-Continuation Checks (Bash session-state read, `/reload-plugins`, `/compact`), timer management (CronCreate/CronDelete), channel notifications (Telegram tool), and the Monitor tool for CI/PR polling. All story-level operations are delegated to subagents.
 2. **One subagent per step per story** — spawn only after the previous step reports success.
 3. **Sequential steps within a story** — Steps 1→2→3→4→5→6→7 run strictly in order.
 4. **Parallel stories** — launch all stories' Step 1 in one message (one tool call per story). Phase 3 runs sequentially by design.

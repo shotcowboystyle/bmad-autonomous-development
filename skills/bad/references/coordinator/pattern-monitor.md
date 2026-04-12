@@ -13,7 +13,7 @@ Use this pattern when `MONITOR_SUPPORT=true`. It covers two use cases in BAD: CI
 
 ## CI status polling (Step 6)
 
-Poll script (run inside the Step 4 subagent):
+Poll script (run inside the Step 6 subagent):
 ```bash
 GH_BIN="$(command -v gh)"
 while true; do
@@ -23,7 +23,7 @@ done
 ```
 
 React to each output line:
-- `"conclusion":"success"` → stop Monitor, proceed to step 5
+- `"conclusion":"success"` → stop Monitor, report success
 - `"conclusion":"failure"` or `"conclusion":"cancelled"` → stop Monitor, diagnose, fix, push, restart Monitor
 - Billing/spending limit text in output → stop Monitor, run Local CI Fallback
 
