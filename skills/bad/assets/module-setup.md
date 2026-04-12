@@ -57,11 +57,13 @@ If **yes**, read and follow `references/coordinator/setup-statusline-hook.md`.
 
 Skip this step if `claude-code` was not detected in Step 2.
 
+**Always run this step on every setup and reconfiguration** — even if Step 3 was already satisfied. The hook may not be installed yet, or may need re-installation after a settings file was reset. The install script is safe to re-run (anti-zombie pattern).
+
 BAD can log every tool call made by any agent (coordinator or subagent) to per-session files in the Claude session history directory. The coordinator uses these logs with the Monitor watchdog pattern (`references/coordinator/pattern-watchdog.md`) to detect hung subagents without requiring subagents to write their own heartbeats — every natural tool call (`Read`, `Write`, `Bash`, etc.) is captured passively.
 
-Ask: **"Install BAD activity log hook (logs all tool calls for hang detection)? [Y/n]"**
-
-Default: **yes** (or auto-accept if `--headless` / `accept all defaults`).
+First, check `.claude/settings.local.json` for an existing BAD activity hook (look for a `PostToolUse` hook entry whose `command` references `bad-logs`):
+- If found: inform the user — **"BAD activity log hook: already installed — will reinstall to ensure it's current."** Proceed without prompting (treat as yes).
+- If not found: ask **"Install BAD activity log hook (logs all tool calls for hang detection)? [Y/n]"** — default **yes** (or auto-accept if `--headless` / `accept all defaults`). Skip the rest of this step if the user says no.
 
 If **yes**, run:
 
