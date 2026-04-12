@@ -207,7 +207,7 @@ Launch all stories' Step 1 subagents **in a single message** (parallel). Each st
 | `review`        | Step 4     | Steps 1–3     |
 | `done`          | —          | all           |
 
-**After each step:** run **Pre-Continuation Checks** (see `references/coordinator/gate-pre-continuation.md`) and 📣 **Notify** the step result before spawning the next subagent.
+**After each step:** run **Pre-Continuation Checks** (see `references/coordinator/gate-pre-continuation.md`) — **this is mandatory; never skip it, even when stories run in parallel** — and 📣 **Notify** the step result before spawning the next subagent.
 
 📣 **Notify per step** as each step completes:
 - Success: `✅ Story {number}: Step {N} — {step name}`
@@ -569,3 +569,4 @@ Read `references/coordinator/pattern-gh-curl-fallback.md` when any `gh` command 
 9. **sprint-status.yaml is updated by step subagents** — each step subagent writes to the repo root copy. The coordinator never does this directly.
 10. **On failure** — report the error, halt that story. No auto-retry. **Exception:** rate/usage limit failures → run Pre-Continuation Checks (auto-pauses until reset) then retry.
 11. **Issue all Step 1 subagent calls in one response** when Phase 2 begins. After each story's Step 1 completes, issue that story's Step 2 — never wait for all stories' Step 1 to finish before issuing any Step 2. This rolling-start rule applies to all sequential steps within a story.
+12. **Pre-Continuation Checks are mandatory at every gate** — run `references/coordinator/gate-pre-continuation.md` between every step spawn, after each Phase 3 merge, and before every Phase 0 re-entry. Never skip or defer these checks, even when handling multiple parallel story completions simultaneously.

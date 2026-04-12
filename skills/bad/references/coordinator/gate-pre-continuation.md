@@ -22,7 +22,9 @@ Parse the output as JSON. The relevant fields:
 - `rate_limits.seven_day.used_percentage` — 0–100 (Claude Code only)
 - `rate_limits.seven_day.resets_at` — Unix epoch seconds when the 7-day window resets
 
-Each field may be independently absent. If the file does not exist or a field is absent, skip the corresponding check.
+**If the file does not exist** — print `"⚠️ Pre-Continuation: session state unavailable (bad-session-state.json missing — check that the session-state hook is installed via /bad setup Step 3). Skipping rate limit checks."` and proceed.
+
+**If a specific field is absent** — silently skip only that check. If the file exists but `rate_limits` is entirely absent, print `"⚠️ Pre-Continuation: rate limit data not in session state — skipping usage checks."` once (not on every gate).
 
 ---
 
