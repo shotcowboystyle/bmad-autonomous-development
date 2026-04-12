@@ -534,9 +534,11 @@ Using the assessment report from Step 2, follow the applicable branch:
    - `current_epic_merged = true` (epic fully landed): `✅ Epic {current_epic_name} complete. Next up: Epic {next_epic_name} ({stories_remaining} stories remaining).`
    - `current_epic_prs_open = true` (all stories have PRs, waiting for merges): `⏸ Epic {current_epic_name} in review — waiting for PRs to merge before continuing.`
    - Otherwise (more stories to develop in current epic): `✅ Batch complete. Ready for the next batch.`
-2. Start the wait using the **[Monitor Pattern](references/coordinator/pattern-monitor.md)** (when `MONITOR_SUPPORT=true`) or the **[Timer Pattern](references/coordinator/pattern-timer.md)** (when `MONITOR_SUPPORT=false`):
+2. Start the wait using the **[Monitor Pattern](references/coordinator/pattern-monitor.md)** (when `MONITOR_SUPPORT=true` **and** `AUTO_PR_MERGE=false`) or the **[Timer Pattern](references/coordinator/pattern-timer.md)** otherwise:
 
-   **If `MONITOR_SUPPORT=true` — Monitor + CronCreate fallback:**
+   > **`AUTO_PR_MERGE=true` guard:** When `AUTO_PR_MERGE=true`, Phase 3 already merged all batch PRs before Phase 4 runs. `BATCH_PRS` will be empty, causing the Monitor to fire `ALL_MERGED` immediately with no actual pause. Skip the Monitor path entirely and go directly to the **Timer only** path below — the `WAIT_TIMER_SECONDS` cooldown must still fire before the next batch.
+
+   **If `MONITOR_SUPPORT=true` and `AUTO_PR_MERGE=false` — Monitor + CronCreate fallback:**
    - Fill in `BATCH_PRS` from the Phase 0 pending-PR report (space-separated numbers, e.g. `"101 102 103"`). Use the PR-merge watcher script from [monitor-pattern.md](references/coordinator/pattern-monitor.md) with that value substituted. Save the Monitor handle as `PR_MONITOR`.
    - Also start a CronCreate fallback timer using the [Timer Pattern](references/coordinator/pattern-timer.md) with:
      - **Duration:** `WAIT_TIMER_SECONDS`
@@ -549,7 +551,7 @@ Using the assessment report from Step 2, follow the applicable branch:
    - **On `ALL_MERGED` event:** CronDelete the fallback timer, stop `PR_MONITOR`, run Pre-Continuation Checks, re-run Phase 0.
    - 📣 **Notify:** `⏳ Watching for PR merges (max wait: {WAIT_TIMER_SECONDS ÷ 60} min)...`
 
-   **If `MONITOR_SUPPORT=false` — Timer only:**
+   **If `MONITOR_SUPPORT=false` or `AUTO_PR_MERGE=true` — Timer only:**
    - Use the [Timer Pattern](references/coordinator/pattern-timer.md) with:
      - **Duration:** `WAIT_TIMER_SECONDS`
      - **Fire prompt:** `"BAD_WAIT_TIMER_FIRED — The post-batch wait has elapsed. Run Pre-Continuation Checks, then re-run Phase 0, then proceed to Phase 1."`
