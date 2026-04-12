@@ -54,7 +54,7 @@ Check whether `.claude/bad-statusline.sh` exists and `.claude/settings.local.jso
 
 **If `--headless` / `accept all defaults`:** auto-accept (treat as yes) and skip the question.
 
-Otherwise, use **AskUserQuestion**:
+Otherwise, call the **`AskUserQuestion` tool** with:
 ```
 question: "Install BAD session-state capture? (writes rate-limit / context data to a temp file for Pre-Continuation Checks)"
 header: "State hook"
@@ -79,7 +79,7 @@ Check `.claude/settings.local.json` for an existing BAD activity hook (look for 
 
 **If `--headless` / `accept all defaults`:** auto-accept (treat as yes) and skip the question.
 
-Otherwise, use **AskUserQuestion**:
+Otherwise, call the **`AskUserQuestion` tool** with:
 ```
 question: "Install BAD activity log hook? (logs all tool calls for subagent hang detection)"
 header: "Activity hook"
