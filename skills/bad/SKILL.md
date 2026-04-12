@@ -207,7 +207,7 @@ Launch all stories' Step 1 subagents **in a single message** (parallel). Each st
 | `review`        | Step 4     | Steps 1–3     |
 | `done`          | —          | all           |
 
-**After each step:** run **Pre-Continuation Checks** (see `references/coordinator/gate-pre-continuation.md`) — **this is mandatory; never skip it, even when stories run in parallel** — and 📣 **Notify** the step result before spawning the next subagent.
+**After each step — mandatory gate (never skip, even with parallel stories):** 📣 **Notify** the step result (formats below), then run **Pre-Continuation Checks** (`references/coordinator/gate-pre-continuation.md`). Only after all checks pass → spawn the next subagent.
 
 📣 **Notify per step** as each step completes:
 - Success: `✅ Story {number}: Step {N} — {step name}`
