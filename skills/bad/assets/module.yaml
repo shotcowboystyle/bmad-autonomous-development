@@ -1,7 +1,7 @@
 code: bad
 name: "BMad Autonomous Development"
 description: "Orchestrates parallel BMad story implementation pipelines — automatically runs bmad-create-story, bmad-dev-story, bmad-code-review, and commit/PR in batches, driven by the sprint backlog and dependency graph"
-module_version: "1.1.0"
+module_version: "1.2.0"
 module_greeting: "BAD is ready. Run /bad to start. Pass KEY=VALUE args to override config at runtime (e.g. /bad MAX_PARALLEL_STORIES=2)."
 
 header: "BAD — BMad Autonomous Development"
@@ -38,4 +38,9 @@ retro_timer_seconds:
 context_compaction_threshold:
   prompt: "Context window % at which to compact/summarise context"
   default: "80"
+  result: "{value}"
+
+stale_timeout_minutes:
+  prompt: "Minutes of subagent inactivity before watchdog alerts (0 = disabled)"
+  default: "60"
   result: "{value}"

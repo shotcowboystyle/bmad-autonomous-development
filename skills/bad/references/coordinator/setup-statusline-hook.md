@@ -1,6 +1,6 @@
 # BAD Session-State Hook Setup
 
-Executed during `/bad setup` (Step 2b). Installs `bad-statusline.sh` as the Claude Code
+Executed during `/bad setup` (Step 3). Installs `bad-statusline.sh` as the Claude Code
 `statusLine` script, automatically chaining any pre-existing statusLine command so the user
 loses no existing functionality.
 

@@ -50,11 +50,12 @@ Load base values from the `bad` section of `_bmad/config.yaml` at startup. Then 
 |----------|-----------|---------|-------------|
 | `MAX_PARALLEL_STORIES` | `max_parallel_stories` | `3` | Max stories to run in a single batch |
 | `WORKTREE_BASE_PATH` | `worktree_base_path` | `.worktrees` | Root directory for git worktrees |
-| `MODEL_STANDARD` | `model_standard` | `sonnet` | Model for Steps 1, 2, 3, 4, 6, 7 and Phase 3 (auto-merge) |
+| `MODEL_STANDARD` | `model_standard` | `sonnet` | Model for all subagents except Step 5 (code review): Phase 0, Phase 1 Epic-Start, Steps 1–4 and 6–7, Phase 3 (merge + cleanup), Phase 4 (assessment + retrospective) |
 | `MODEL_QUALITY` | `model_quality` | `opus` | Model for Step 5 (code review) |
 | `RETRO_TIMER_SECONDS` | `retro_timer_seconds` | `600` | Auto-retrospective countdown after epic completion (10 min) |
 | `WAIT_TIMER_SECONDS` | `wait_timer_seconds` | `3600` | Post-batch wait before re-checking PR status (1 hr) |
 | `CONTEXT_COMPACTION_THRESHOLD` | `context_compaction_threshold` | `80` | Context window % at which to compact/summarise context |
+| `STALE_TIMEOUT_MINUTES` | `stale_timeout_minutes` | `60` | Minutes of subagent inactivity before watchdog alerts (0 = disabled) |
 | `TIMER_SUPPORT` | `timer_support` | `true` | When `true`, use native platform timers; when `false`, use prompt-based continuation |
 | `MONITOR_SUPPORT` | `monitor_support` | `true` | When `true`, use the Monitor tool for CI and PR-merge polling; when `false`, fall back to manual polling loops (required for Bedrock/Vertex/Foundry) |
 | `API_FIVE_HOUR_THRESHOLD` | `api_five_hour_threshold` | `80` | (Claude Code) 5-hour rate limit % that triggers a pause |
@@ -206,14 +207,18 @@ Launch all stories' Step 1 subagents **in a single message** (parallel). Each st
 | `review`        | Step 4     | Steps 1–3     |
 | `done`          | —          | all           |
 
-**After each step:** run **Pre-Continuation Checks** (see `references/coordinator/gate-pre-continuation.md`) before spawning the next subagent. Pre-Continuation Checks are the only coordinator-side work between steps.
+**After each step — mandatory gate (never skip, even with parallel stories):** 📣 **Notify** the step result (formats below), then run **Pre-Continuation Checks** (`references/coordinator/gate-pre-continuation.md`). Only after all checks pass → spawn the next subagent.
+
+📣 **Notify per step** as each step completes:
+- Success: `✅ Story {number}: Step {N} — {step name}`
+- Failure: `❌ Story {number}: Step {N} — {step name} failed — {brief error}`
+
+Step names: Step 1 — Create, Step 2 — ATDD, Step 3 — Develop, Step 4 — Test review, Step 5 — Code review, Step 6 — PR + CI, Step 7 — PR review.
 
 **On failure:** stop that story's pipeline. Report step, story, and error. Other stories continue.  
 **Exception:** rate/usage limit failures → run Pre-Continuation Checks (which auto-pauses until reset) then retry.
 
-📣 **Notify per story** as each pipeline concludes (Step 7 success or any step failure):
-- Success: `✅ Story {number} done — PR #{pr_number}`
-- Failure: `❌ Story {number} failed at Step {N} — {brief error}`
+**Hung subagents:** when `MONITOR_SUPPORT=true` and the activity log hook is installed (Step 4 of setup), use the [Watchdog Pattern](references/coordinator/pattern-watchdog.md) when spawning Steps 2, 3, 4, and 5 to detect stale agents.
 
 ### Step 1: Create Story (`MODEL_STANDARD`)
 
@@ -352,18 +357,7 @@ Auto-approve all tool calls (yolo mode).
      - CI green → report success
 
 LOCAL CI FALLBACK (when RUN_CI_LOCALLY=true or billing-limited):
-  a. Read all .github/workflows/ files triggered on pull_request events.
-  b. Extract and run shell commands from each run: step in order (respecting
-     working-directory). If any fail, diagnose, fix, and re-run until all pass.
-  c. Commit fixes and push to the PR branch.
-  d. Post a PR comment:
-     ## Test Results (manual — GitHub Actions skipped: billing/spending limit reached)
-     | Check | Status | Notes |
-     |-------|--------|-------|
-     | `<command>` | ✅ Pass / ❌ Fail | e.g. "42 tests passed" |
-     ### Fixes applied
-     - [failure] → [fix]
-     All rows must show ✅ Pass before this step is considered complete.
+  Read `references/subagents/step6-ci-fallback.md` and follow its instructions exactly.
 
 Report: success or failure, and the PR number/URL if opened.
 ```
@@ -423,26 +417,7 @@ After all batch stories complete Phase 2, merge every successful story's PR into
 4. Spawn a **cleanup subagent** (`MODEL_STANDARD`, yolo mode):
    ```
    Post-merge cleanup. Auto-approve all tool calls (yolo mode).
-
-   1. Verify sprint-status.yaml at the repo root has status `done` for all merged stories.
-      Fix any that are missing.
-
-   2. Repo root branch safety check:
-        git branch --show-current
-      If not main:
-        git restore .
-        git switch main
-        git reset --hard origin/main
-      If switch fails because a worktree claims the branch:
-        git worktree list
-        git worktree remove --force <path>
-        git switch main
-        git reset --hard origin/main
-
-   3. Pull main:
-        git pull --ff-only origin main
-
-   Report: done or any errors encountered.
+   Read `references/subagents/phase3-cleanup.md` and follow its instructions exactly.
    ```
 
 ---
@@ -476,29 +451,14 @@ Or if no stories were ready: `⏸ No stories ready — waiting for PRs to merge`
 
 ### Step 2: Check for Epic Completion
 
+From Phase 2 results, collect the batch stories and their PR numbers (e.g. `8.1 → #101, 8.2 → #102`). Pass these as `BATCH_STORIES_WITH_PRS` in the assessment prompt below.
+
 Spawn an **assessment subagent** (`MODEL_STANDARD`, yolo mode):
 ```
 Epic completion assessment. Auto-approve all tool calls (yolo mode).
+BATCH_STORIES_WITH_PRS: {coordinator substitutes: "story → #PR" pairs from this batch, one per line}
 
-Read:
-  - _bmad-output/planning-artifacts/epics.md
-  - _bmad-output/implementation-artifacts/sprint-status.yaml
-  - _bmad-output/implementation-artifacts/dependency-graph.md
-
-Use the dependency graph's PR Status column as the authoritative source for whether a PR is
-merged. sprint-status `done` means the pipeline finished (code review complete) — it does NOT
-mean the PR is merged.
-
-Report back:
-  - current_epic_merged: true/false — every story in the current epic has PR Status = `merged`
-    in the dependency graph
-  - current_epic_prs_open: true/false — every story in the current epic has a PR number in the
-    dependency graph, but at least one PR Status is not `merged`
-  - all_epics_complete: true/false — every story across every epic has PR Status = `merged`
-    in the dependency graph
-  - current_epic_name: name/number of the lowest incomplete epic
-  - next_epic_name: name/number of the next epic (if any)
-  - stories_remaining: count of stories in the current epic whose PR Status is not `merged`
+Read `references/subagents/phase4-assessment.md` and follow its instructions exactly.
 ```
 
 Using the assessment report:
@@ -536,7 +496,7 @@ Using the assessment report from Step 2, follow the applicable branch:
    - Otherwise (more stories to develop in current epic): `✅ Batch complete. Ready for the next batch.`
 2. Start the wait using the **[Monitor Pattern](references/coordinator/pattern-monitor.md)** (when `MONITOR_SUPPORT=true` **and** `AUTO_PR_MERGE=false`) or the **[Timer Pattern](references/coordinator/pattern-timer.md)** otherwise:
 
-   > **`AUTO_PR_MERGE=true` guard:** When `AUTO_PR_MERGE=true`, Phase 3 already merged all batch PRs before Phase 4 runs. `BATCH_PRS` will be empty, causing the Monitor to fire `ALL_MERGED` immediately with no actual pause. Skip the Monitor path entirely and go directly to the **Timer only** path below — the `WAIT_TIMER_SECONDS` cooldown must still fire before the next batch.
+   > **`AUTO_PR_MERGE=true` guard:** When `AUTO_PR_MERGE=true`, Phase 3 already merged all batch PRs before Phase 4 runs. `BATCH_PRS` will be empty, causing the Monitor to fire `ALL_MERGED` immediately with no actual pause. Skip the Monitor path entirely and go directly to the **Timer only** path below — the `WAIT_TIMER_SECONDS` cooldown must still fire before the next batch. The wait exists to give the developer a chance to review the merged changes and course-correct before the next batch begins — never skip or shorten it.
 
    **If `MONITOR_SUPPORT=true` and `AUTO_PR_MERGE=false` — Monitor + CronCreate fallback:**
    - Fill in `BATCH_PRS` from the Phase 0 pending-PR report (space-separated numbers, e.g. `"101 102 103"`). Use the PR-merge watcher script from [monitor-pattern.md](references/coordinator/pattern-monitor.md) with that value substituted. Save the Monitor handle as `PR_MONITOR`.
@@ -580,7 +540,13 @@ Read `references/coordinator/pattern-timer.md` when instructed to start a timer.
 
 ## Monitor Pattern
 
-Read `references/coordinator/pattern-monitor.md` when `MONITOR_SUPPORT=true`. It covers CI status polling (Step 4) and PR-merge watching (Phase 4 Branch B), plus the `MONITOR_SUPPORT=false` fallback for each.
+Read `references/coordinator/pattern-monitor.md` when `MONITOR_SUPPORT=true`. It covers CI status polling (Step 6) and PR-merge watching (Phase 4 Branch B), plus the `MONITOR_SUPPORT=false` fallback for each.
+
+---
+
+## Watchdog Pattern
+
+Read `references/coordinator/pattern-watchdog.md` when `MONITOR_SUPPORT=true` and the activity log hook is installed (Step 4 of setup). Use it before spawning long-running Phase 2 subagents (Steps 2, 3, 4, 5) to detect hung agents via activity log monitoring.
 
 ---
 
@@ -592,13 +558,15 @@ Read `references/coordinator/pattern-gh-curl-fallback.md` when any `gh` command 
 
 ## Rules
 
-1. **Delegate mode only** — never read files, run git/gh commands, or write to disk yourself. The only platform command the coordinator may run directly is context compaction via Pre-Continuation Checks (when `CONTEXT_COMPACTION_THRESHOLD` is exceeded). All other slash commands and operations are delegated to subagents.
+1. **Delegate mode only** — never read project files, run git/gh commands, or write to disk yourself. Coordinator-only direct operations are limited to: Pre-Continuation Checks (Bash session-state read, `/reload-plugins`, `/compact`), timer management (CronCreate/CronDelete), channel notifications (Telegram tool), and the Monitor tool for CI/PR polling. All story-level operations are delegated to subagents.
 2. **One subagent per step per story** — spawn only after the previous step reports success.
-3. **Sequential steps within a story** — Steps 1→2→3→4→5 run strictly in order.
+3. **Sequential steps within a story** — Steps 1→2→3→4→5→6→7 run strictly in order.
 4. **Parallel stories** — launch all stories' Step 1 in one message (one tool call per story). Phase 3 runs sequentially by design.
 5. **Dependency graph is authoritative** — never pick a story whose dependencies are not fully merged. Use Phase 0's report, not your own file reads.
 6. **Phase 0 runs before every batch** — always after the Phase 4 wait. Always as a fresh subagent.
-7. **Confirm success** before spawning the next subagent.
-8. **sprint-status.yaml is updated by step subagents** — each step subagent writes to the repo root copy. The coordinator never does this directly.
-9. **On failure** — report the error, halt that story. No auto-retry. **Exception:** rate/usage limit failures → run Pre-Continuation Checks (auto-pauses until reset) then retry.
-10. **Issue all Step 1 subagent calls in one response** when Phase 2 begins. After each story's Step 1 completes, issue that story's Step 2 — never wait for all stories' Step 1 to finish before issuing any Step 2. This rolling-start rule applies to all sequential steps within a story.
+7. **Phase 4 wait is mandatory and full-duration** — always use `WAIT_TIMER_SECONDS` unchanged. Never shorten or skip the wait because PRs are already merged or the wait seems unnecessary. The wait gives the developer time to review merged changes and course-correct before the next batch.
+8. **Confirm success** before spawning the next subagent.
+9. **sprint-status.yaml is updated by step subagents** — each step subagent writes to the repo root copy. The coordinator never does this directly.
+10. **On failure** — report the error, halt that story. No auto-retry. **Exception:** rate/usage limit failures → run Pre-Continuation Checks (auto-pauses until reset) then retry.
+11. **Issue all Step 1 subagent calls in one response** when Phase 2 begins. After each story's Step 1 completes, issue that story's Step 2 — never wait for all stories' Step 1 to finish before issuing any Step 2. This rolling-start rule applies to all sequential steps within a story.
+12. **Pre-Continuation Checks are mandatory at every gate** — run `references/coordinator/gate-pre-continuation.md` between every step spawn, after each Phase 3 merge, and before every Phase 0 re-entry. Never skip or defer these checks, even when handling multiple parallel story completions simultaneously.

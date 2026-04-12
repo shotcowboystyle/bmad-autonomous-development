@@ -37,80 +37,168 @@ Check for the presence of harness directories at the project root:
 
 Store all detected harnesses. Determine the **current harness** from this skill's own file path — whichever harness directory contains this running skill is the current harness. Use the current harness to drive the question branch in Step 3.
 
-## Step 2b: Session-State Hook (Claude Code only)
+## Step 3: Session-State Hook (Claude Code only)
 
-Skip this step if `claude-code` was not detected in Step 2.
+Skip this step if `claude-code` was not detected in Step 2, or if `--headless` /
+`accept all defaults` was passed (auto-accept as yes).
 
-The BAD coordinator's Pre-Continuation Checks (rate-limit pausing, context compaction) need
-access to Claude Code session state — `context_window.used_percentage` and `rate_limits.*`.
-Claude Code exposes this data via the `statusLine` script mechanism: it pipes a JSON blob to
-the script on every API response. This step installs a lightweight script that writes that JSON
-to a temp file the coordinator reads with the Bash tool.
+Silently check: does `.claude/bad-statusline.sh` exist and does `.claude/settings.local.json`
+have a `statusLine` entry pointing to it? Note `already installed` or `not yet installed`.
 
-Ask: **"Install BAD session-state capture (writes rate-limit / context data to a temp file for Pre-Continuation Checks)? [Y/n]"**
+Invoke the **`AskUserQuestion`** tool (your only output for this turn — do not proceed to
+Step 4 until the tool returns):
 
-Default: **yes** (or auto-accept if `--headless` / `accept all defaults`).
+```
+questions: [
+  {
+    question: "Install BAD session-state capture? Writes rate-limit / context data to a temp file so the coordinator can pause near API limits. [<state-hook-status>]",
+    header: "State hook",
+    multiSelect: false,
+    options: [
+      { label: "Yes, install", description: "Recommended — enables rate-limit pausing and context compaction" },
+      { label: "No, skip",     description: "Pre-Continuation Checks will not have session data" }
+    ]
+  }
+]
+```
 
-If **yes**, read and follow `references/coordinator/setup-statusline-hook.md`.
+If **Yes**: read and follow `references/coordinator/setup-statusline-hook.md`, then proceed to Step 4.
+If **No**: proceed to Step 4.
+
+## Step 4: Activity Log Hook (Claude Code only)
+
+Skip this step if `claude-code` was not detected in Step 2, or if `--headless` /
+`accept all defaults` was passed (auto-accept as yes).
+
+**Always run on every setup and reconfiguration** — even if already installed. The script is safe to re-run (anti-zombie pattern).
+
+Silently check: does `.claude/settings.local.json` have a `PostToolUse` hook whose `command`
+references `bad-logs`? Note `already installed — will reinstall` or `not yet installed`.
+
+Invoke the **`AskUserQuestion`** tool (your only output for this turn — do not proceed to
+Step 5 until the tool returns):
+
+```
+questions: [
+  {
+    question: "Install BAD activity log hook? Logs every tool call passively so the watchdog can detect hung subagents. [<activity-hook-status>]",
+    header: "Activity hook",
+    multiSelect: false,
+    options: [
+      { label: "Yes, install", description: "Recommended — enables hang detection via the watchdog pattern" },
+      { label: "No, skip",     description: "Watchdog pattern will be disabled" }
+    ]
+  }
+]
+```
+
+If **Yes**, run:
+```bash
+python3 ./scripts/setup-activity-hook.py \
+  --settings-path ".claude/settings.local.json" \
+  --project-root "$(pwd)"
+```
+The script adds a `PostToolUse` hook to `.claude/settings.local.json` (project-scoped), writes
+one TSV line per tool call to `~/.claude/projects/<encoded-project>/bad-logs/<agent-slug>/<session-id>.log`,
+and uses an anti-zombie pattern so it is safe to re-run.
+
+Proceed to Step 5.
 
 ---
 
-## Step 3: Collect Configuration
+## Step 5: Core Config (only if not yet set)
 
-Show defaults in brackets. Present all values together so the user can respond once with only what they want to change. Never say "press enter" or "leave blank".
+Skip this step if `user_name` already exists in `config.yaml` or `config.user.yaml`.
+
+**If `--headless` / `accept all defaults`:** use defaults (`BMad`, `English`) without prompting.
+
+Otherwise, invoke the **`AskUserQuestion`** tool:
+
+```
+questions: [
+  {
+    question: "What name should BAD use for you in notifications and reports?",
+    header: "Your name",
+    multiSelect: false,
+    options: [
+      { label: "BMad",  description: "Default" },
+      { label: "Other", description: "Type your name" }
+    ]
+  },
+  {
+    question: "What language should BAD use for communication and documents?",
+    header: "Language",
+    multiSelect: false,
+    options: [
+      { label: "English", description: "Default" },
+      { label: "Other",   description: "Type your language" }
+    ]
+  }
+]
+```
+
+Record `user_name` → `config.user.yaml`; `communication_language` and
+`document_output_language` (same value) → `config.user.yaml` and `config.yaml` respectively.
+
+---
+
+## Step 6: BAD Configuration
 
 **Default priority** (highest wins): existing config values > `./assets/module.yaml` defaults.
+**If `--headless` / `accept all defaults`:** skip this step entirely and use defaults.
 
-### Core Config (only if not yet set)
+First, **print all current config values** as a formatted block so the user can review them:
 
-Only collect if no core keys exist in `config.yaml` or `config.user.yaml`:
+```
+⚙️ BAD Configuration — current values shown in [brackets]
 
-- `user_name` (default: BMad) — written exclusively to `config.user.yaml`
-- `communication_language` and `document_output_language` (default: English — ask as a single language question, both keys get the same answer) — `communication_language` written exclusively to `config.user.yaml`
-- `output_folder` (default: `{project-root}/_bmad-output`) — written to root of `config.yaml`, shared across all modules
+Universal settings:
+  max_parallel_stories          [<value>] — Max stories per batch
+  worktree_base_path            [<value>] — Git worktrees directory
+  auto_pr_merge                 [<value>] — Auto-merge batch PRs after each batch
+  run_ci_locally                [<value>] — Skip GitHub Actions, run CI locally
+  wait_timer_seconds            [<value>] — Seconds between batches
+  retro_timer_seconds           [<value>] — Seconds before auto-retrospective
+  context_compaction_threshold  [<value>] — Context % to trigger compaction
+  stale_timeout_minutes         [<value>] — Inactivity minutes before watchdog alerts
 
-### Universal BAD Config
+Claude Code settings:
+  model_standard           [<value>] — Model for story/dev/PR steps
+  model_quality            [<value>] — Model for code review
+  api_five_hour_threshold  [<value>] — 5-hour usage % to pause
+  api_seven_day_threshold  [<value>] — 7-day usage % to pause
+```
 
-Read from `./assets/module.yaml` and present as a grouped block:
+Then invoke the **`AskUserQuestion`** tool (your only output for this turn — do not proceed
+to Step 7 until the tool returns):
 
-- `max_parallel_stories` — Max stories to run in a single batch [3]
-- `worktree_base_path` — Root directory for git worktrees, relative to repo root [.worktrees]
-- `auto_pr_merge` — Auto-merge batch PRs sequentially after each batch? [No]
-- `run_ci_locally` — Skip GitHub Actions and run CI locally by default? [No]
-- `wait_timer_seconds` — Seconds to wait between batches before re-checking PR status [3600]
-- `retro_timer_seconds` — Seconds before auto-running retrospective after epic completion [600]
-- `context_compaction_threshold` — Context window % at which to compact/summarise context [80]
+```
+questions: [
+  {
+    question: "Review the configuration above. Accept all defaults, or specify what to change?",
+    header: "Config",
+    multiSelect: false,
+    options: [
+      { label: "Accept all defaults", description: "Keep every value shown above and proceed" },
+      { label: "Change some values",  description: "Select 'Other' to type overrides as KEY=VALUE pairs, e.g. max_parallel_stories=5, model_quality=sonnet" }
+    ]
+  }
+]
+```
 
-### Harness-Specific Config
+- **Accept all defaults:** proceed to Step 7.
+- **Change some values / Other:** parse the user's text as `KEY=VALUE` pairs (space or comma
+  separated). Apply overrides to the resolved config. Proceed to Step 7.
 
-Run once for the **current harness**. If multiple harnesses are detected, also offer to configure each additional harness in sequence after the current one — label each section clearly.
+If multiple harnesses are detected, repeat this step once per additional harness — label each
+section clearly and store model/threshold values with a harness prefix (e.g.
+`claude_model_standard`).
 
-When configuring multiple harnesses, model and threshold variables are stored with a harness prefix (e.g. `claude_model_standard`, `cursor_model_standard`) so they coexist. Universal variables are shared and asked only once.
+Automatically write without prompting:
+- Claude Code: `timer_support: true`, `monitor_support: true`
+- All other harnesses: `timer_support: false`, `monitor_support: false`
 
-#### Claude Code (`claude-code`)
-
-Present as **"Claude Code settings"**:
-
-- `model_standard` — Model for story creation, dev, and PR steps
-  - Choose: `sonnet` (default), `haiku`
-- `model_quality` — Model for code review step
-  - Choose: `opus` (default), `sonnet`
-- `api_five_hour_threshold` — 5-hour API usage % at which to pause [80]
-- `api_seven_day_threshold` — 7-day API usage % at which to pause [95]
-
-Automatically write `timer_support: true` and `monitor_support: true` — no prompt needed.
-
-#### All Other Harnesses
-
-Present as **"{HarnessName} settings"**:
-
-- `model_standard` — Model for story creation, dev, and PR steps (e.g. `fast`, `gpt-4o-mini`, `flash`)
-- `model_quality` — Model for code review step (e.g. `best`, `o1`, `pro`)
-- `api_usage_threshold` — API usage % at which to pause for rate limits [80]
-
-Automatically write `timer_support: false` and `monitor_support: false` — no prompt needed. BAD will use prompt-based continuation instead of native timers, and manual polling loops instead of the Monitor tool, on this harness.
-
-## Step 4: Write Files
+## Step 7: Write Files
 
 Write a temp JSON file with collected answers structured as:
 ```json
@@ -124,6 +212,7 @@ Write a temp JSON file with collected answers structured as:
     "wait_timer_seconds": "3600",
     "retro_timer_seconds": "600",
     "context_compaction_threshold": "80",
+    "stale_timeout_minutes": "60",
     "timer_support": true,
     "monitor_support": true,
     "model_standard": "sonnet",
@@ -153,13 +242,13 @@ If either exits non-zero, surface the error and stop.
 
 Run `./scripts/merge-config.py --help` or `./scripts/merge-help-csv.py --help` for full usage.
 
-## Step 5: Create Directories
+## Step 8: Create Directories
 
 After writing config, create the worktree base directory at the resolved path of `{project-root}/{worktree_base_path}` if it does not exist. Use the actual resolved path for filesystem operations only — config values must continue to use the literal `{project-root}` token.
 
 Also create `output_folder` and any other `{project-root}/`-prefixed values from the config that don't exist on disk.
 
-## Step 6: Confirm and Greet
+## Step 9: Confirm and Greet
 
 Display what was written: config values set, user settings written, help entries registered, fresh install vs reconfiguration.
 
