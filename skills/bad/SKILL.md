@@ -55,6 +55,7 @@ Load base values from the `bad` section of `_bmad/config.yaml` at startup. Then 
 | `RETRO_TIMER_SECONDS` | `retro_timer_seconds` | `600` | Auto-retrospective countdown after epic completion (10 min) |
 | `WAIT_TIMER_SECONDS` | `wait_timer_seconds` | `3600` | Post-batch wait before re-checking PR status (1 hr) |
 | `CONTEXT_COMPACTION_THRESHOLD` | `context_compaction_threshold` | `80` | Context window % at which to compact/summarise context |
+| `STALE_TIMEOUT_MINUTES` | `stale_timeout_minutes` | `60` | Minutes of subagent inactivity before watchdog alerts (0 = disabled) |
 | `TIMER_SUPPORT` | `timer_support` | `true` | When `true`, use native platform timers; when `false`, use prompt-based continuation |
 | `MONITOR_SUPPORT` | `monitor_support` | `true` | When `true`, use the Monitor tool for CI and PR-merge polling; when `false`, fall back to manual polling loops (required for Bedrock/Vertex/Foundry) |
 | `API_FIVE_HOUR_THRESHOLD` | `api_five_hour_threshold` | `80` | (Claude Code) 5-hour rate limit % that triggers a pause |
@@ -478,29 +479,37 @@ Or if no stories were ready: `⏸ No stories ready — waiting for PRs to merge`
 
 ### Step 2: Check for Epic Completion
 
+From Phase 2 results, collect the batch stories and their PR numbers (e.g. `8.1 → #101, 8.2 → #102`). Pass these as `BATCH_STORIES_WITH_PRS` in the assessment prompt below.
+
 Spawn an **assessment subagent** (`MODEL_STANDARD`, yolo mode):
 ```
 Epic completion assessment. Auto-approve all tool calls (yolo mode).
+
+BATCH_STORIES_WITH_PRS: {coordinator substitutes: "story → #PR" pairs from this batch, one per line}
 
 Read:
   - _bmad-output/planning-artifacts/epics.md
   - _bmad-output/implementation-artifacts/sprint-status.yaml
   - _bmad-output/implementation-artifacts/dependency-graph.md
 
-Use the dependency graph's PR Status column as the authoritative source for whether a PR is
-merged. sprint-status `done` means the pipeline finished (code review complete) — it does NOT
-mean the PR is merged.
+For the stories listed in BATCH_STORIES_WITH_PRS, verify their actual merge status directly
+from GitHub — do not rely solely on the dependency graph for these, as it may be stale:
+  gh pr view {pr_number} --json state,mergedAt
+Treat a PR as `merged` if `state` = `"MERGED"`. Record the real-time result for each.
+
+For all other stories (not in BATCH_STORIES_WITH_PRS), use the dependency graph's PR Status
+column as the authoritative source. sprint-status `done` means the pipeline finished (code
+review complete) — it does NOT mean the PR is merged.
 
 Report back:
-  - current_epic_merged: true/false — every story in the current epic has PR Status = `merged`
-    in the dependency graph
-  - current_epic_prs_open: true/false — every story in the current epic has a PR number in the
-    dependency graph, but at least one PR Status is not `merged`
-  - all_epics_complete: true/false — every story across every epic has PR Status = `merged`
-    in the dependency graph
+  - current_epic_merged: true/false — every story in the current epic is merged (using
+    real-time status for batch stories, dependency graph for all others)
+  - current_epic_prs_open: true/false — every story in the current epic has a PR number,
+    but at least one is not yet merged
+  - all_epics_complete: true/false — every story across every epic is merged
   - current_epic_name: name/number of the lowest incomplete epic
   - next_epic_name: name/number of the next epic (if any)
-  - stories_remaining: count of stories in the current epic whose PR Status is not `merged`
+  - stories_remaining: count of stories in the current epic that are not yet merged
 ```
 
 Using the assessment report:
@@ -538,7 +547,7 @@ Using the assessment report from Step 2, follow the applicable branch:
    - Otherwise (more stories to develop in current epic): `✅ Batch complete. Ready for the next batch.`
 2. Start the wait using the **[Monitor Pattern](references/coordinator/pattern-monitor.md)** (when `MONITOR_SUPPORT=true` **and** `AUTO_PR_MERGE=false`) or the **[Timer Pattern](references/coordinator/pattern-timer.md)** otherwise:
 
-   > **`AUTO_PR_MERGE=true` guard:** When `AUTO_PR_MERGE=true`, Phase 3 already merged all batch PRs before Phase 4 runs. `BATCH_PRS` will be empty, causing the Monitor to fire `ALL_MERGED` immediately with no actual pause. Skip the Monitor path entirely and go directly to the **Timer only** path below — the `WAIT_TIMER_SECONDS` cooldown must still fire before the next batch.
+   > **`AUTO_PR_MERGE=true` guard:** When `AUTO_PR_MERGE=true`, Phase 3 already merged all batch PRs before Phase 4 runs. `BATCH_PRS` will be empty, causing the Monitor to fire `ALL_MERGED` immediately with no actual pause. Skip the Monitor path entirely and go directly to the **Timer only** path below — the `WAIT_TIMER_SECONDS` cooldown must still fire before the next batch. The wait exists to give the developer a chance to review the merged changes and course-correct before the next batch begins — never skip or shorten it.
 
    **If `MONITOR_SUPPORT=true` and `AUTO_PR_MERGE=false` — Monitor + CronCreate fallback:**
    - Fill in `BATCH_PRS` from the Phase 0 pending-PR report (space-separated numbers, e.g. `"101 102 103"`). Use the PR-merge watcher script from [monitor-pattern.md](references/coordinator/pattern-monitor.md) with that value substituted. Save the Monitor handle as `PR_MONITOR`.
@@ -606,7 +615,8 @@ Read `references/coordinator/pattern-gh-curl-fallback.md` when any `gh` command 
 4. **Parallel stories** — launch all stories' Step 1 in one message (one tool call per story). Phase 3 runs sequentially by design.
 5. **Dependency graph is authoritative** — never pick a story whose dependencies are not fully merged. Use Phase 0's report, not your own file reads.
 6. **Phase 0 runs before every batch** — always after the Phase 4 wait. Always as a fresh subagent.
-7. **Confirm success** before spawning the next subagent.
-8. **sprint-status.yaml is updated by step subagents** — each step subagent writes to the repo root copy. The coordinator never does this directly.
-9. **On failure** — report the error, halt that story. No auto-retry. **Exception:** rate/usage limit failures → run Pre-Continuation Checks (auto-pauses until reset) then retry.
-10. **Issue all Step 1 subagent calls in one response** when Phase 2 begins. After each story's Step 1 completes, issue that story's Step 2 — never wait for all stories' Step 1 to finish before issuing any Step 2. This rolling-start rule applies to all sequential steps within a story.
+7. **Phase 4 wait is mandatory and full-duration** — always use `WAIT_TIMER_SECONDS` unchanged. Never shorten or skip the wait because PRs are already merged or the wait seems unnecessary. The wait gives the developer time to review merged changes and course-correct before the next batch.
+8. **Confirm success** before spawning the next subagent.
+9. **sprint-status.yaml is updated by step subagents** — each step subagent writes to the repo root copy. The coordinator never does this directly.
+10. **On failure** — report the error, halt that story. No auto-retry. **Exception:** rate/usage limit failures → run Pre-Continuation Checks (auto-pauses until reset) then retry.
+11. **Issue all Step 1 subagent calls in one response** when Phase 2 begins. After each story's Step 1 completes, issue that story's Step 2 — never wait for all stories' Step 1 to finish before issuing any Step 2. This rolling-start rule applies to all sequential steps within a story.

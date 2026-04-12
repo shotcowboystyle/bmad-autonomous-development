@@ -106,7 +106,7 @@ Proceed to Step 5.
 
 ---
 
-## Step 4: Core Config (only if not yet set)
+## Step 5: Core Config (only if not yet set)
 
 Skip this step if `user_name` already exists in `config.yaml` or `config.user.yaml`.
 
@@ -142,7 +142,7 @@ Record `user_name` → `config.user.yaml`; `communication_language` and
 
 ---
 
-## Step 5: BAD Configuration
+## Step 6: BAD Configuration
 
 **Default priority** (highest wins): existing config values > `./assets/module.yaml` defaults.
 **If `--headless` / `accept all defaults`:** skip this step entirely and use defaults.
@@ -170,7 +170,7 @@ Claude Code settings:
 ```
 
 Then invoke the **`AskUserQuestion`** tool (your only output for this turn — do not proceed
-to Step 6 until the tool returns):
+to Step 7 until the tool returns):
 
 ```
 questions: [
@@ -186,9 +186,9 @@ questions: [
 ]
 ```
 
-- **Accept all defaults:** proceed to Step 6.
+- **Accept all defaults:** proceed to Step 7.
 - **Change some values / Other:** parse the user's text as `KEY=VALUE` pairs (space or comma
-  separated). Apply overrides to the resolved config. Proceed to Step 6.
+  separated). Apply overrides to the resolved config. Proceed to Step 7.
 
 If multiple harnesses are detected, repeat this step once per additional harness — label each
 section clearly and store model/threshold values with a harness prefix (e.g.
@@ -198,7 +198,7 @@ Automatically write without prompting:
 - Claude Code: `timer_support: true`, `monitor_support: true`
 - All other harnesses: `timer_support: false`, `monitor_support: false`
 
-## Step 6: Write Files
+## Step 7: Write Files
 
 Write a temp JSON file with collected answers structured as:
 ```json
@@ -242,13 +242,13 @@ If either exits non-zero, surface the error and stop.
 
 Run `./scripts/merge-config.py --help` or `./scripts/merge-help-csv.py --help` for full usage.
 
-## Step 7: Create Directories
+## Step 8: Create Directories
 
 After writing config, create the worktree base directory at the resolved path of `{project-root}/{worktree_base_path}` if it does not exist. Use the actual resolved path for filesystem operations only — config values must continue to use the literal `{project-root}` token.
 
 Also create `output_folder` and any other `{project-root}/`-prefixed values from the config that don't exist on disk.
 
-## Step 8: Confirm and Greet
+## Step 9: Confirm and Greet
 
 Display what was written: config values set, user settings written, help entries registered, fresh install vs reconfiguration.
 

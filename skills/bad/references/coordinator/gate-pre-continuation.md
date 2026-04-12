@@ -4,7 +4,7 @@ Run these checks **in order** at every gate point: between Phase 2 steps, after 
 
 ## Channel Reconnect (run first, before the numbered checks)
 
-If `NOTIFY_SOURCE` is not `"terminal"` (i.e. a channel like Telegram is configured), run `/reload-plugins` now. This is a no-op when the plugin is already connected, and silently restores it when it has dropped. No user-visible output needed unless the channel was actually missing.
+If `NOTIFY_SOURCE` is not `"terminal"` (i.e. a channel like Telegram is configured), run `/reload-plugins` now. This is a **built-in Claude Code CLI command** — do NOT invoke it via the Skill tool, just execute it directly. This is a no-op when the plugin is already connected, and silently restores it when it has dropped. No user-visible output needed unless the channel was actually missing.
 
 **Harness note:** Checks 2 and 3 require session state data. On Claude Code, this is available via the session-state hook installed by `/bad setup` (Step 3). On other harnesses this data may not be available — each check gracefully skips if its fields are absent.
 
