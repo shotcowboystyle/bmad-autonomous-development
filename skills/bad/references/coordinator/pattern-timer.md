@@ -39,7 +39,7 @@ Save the returned job ID as `JOB_ID`.
 [C] {C label}
 [S] {S label}
 [X] {X label}   ← omit if no [X] label supplied
-[M] <minutes> — modify countdown
+[M] {minutes} — modify countdown
 ```
 
 Wait for whichever arrives first — user reply or fired prompt. On any human reply, print elapsed time first:
@@ -58,7 +58,7 @@ echo "⏱ Time elapsed: $((ELAPSED / 60))m $((ELAPSED % 60))s"
   [C] {C label}
   [S] {S label}
   [X] {X label}   ← omit if no [X] label supplied
-  [M] <minutes> — modify countdown
+  [M] {minutes} — modify countdown
   ```
 - **FIRED (no prior reply)** → run the [C] action automatically
 

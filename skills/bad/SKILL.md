@@ -207,16 +207,18 @@ Launch all stories' Step 1 subagents **in a single message** (parallel). Each st
 | `review`        | Step 4     | Steps 1–3     |
 | `done`          | —          | all           |
 
-**After each step:** run **Pre-Continuation Checks** (see `references/coordinator/gate-pre-continuation.md`) before spawning the next subagent. Pre-Continuation Checks are the only coordinator-side work between steps.
+**After each step:** run **Pre-Continuation Checks** (see `references/coordinator/gate-pre-continuation.md`) and 📣 **Notify** the step result before spawning the next subagent.
+
+📣 **Notify per step** as each step completes:
+- Success: `✅ Story {number}: Step {N} — {step name}`
+- Failure: `❌ Story {number}: Step {N} — {step name} failed — {brief error}`
+
+Step names: Step 1 — Create, Step 2 — ATDD, Step 3 — Develop, Step 4 — Test review, Step 5 — Code review, Step 6 — PR + CI, Step 7 — PR review.
 
 **On failure:** stop that story's pipeline. Report step, story, and error. Other stories continue.  
 **Exception:** rate/usage limit failures → run Pre-Continuation Checks (which auto-pauses until reset) then retry.
 
 **Hung subagents:** when `MONITOR_SUPPORT=true` and the activity log hook is installed (Step 4 of setup), use the [Watchdog Pattern](references/coordinator/pattern-watchdog.md) when spawning Steps 2, 3, 4, and 5 to detect stale agents.
-
-📣 **Notify per story** as each pipeline concludes (Step 7 success or any step failure):
-- Success: `✅ Story {number} done — PR #{pr_number}`
-- Failure: `❌ Story {number} failed at Step {N} — {brief error}`
 
 ### Step 1: Create Story (`MODEL_STANDARD`)
 
