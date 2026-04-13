@@ -49,12 +49,12 @@ If `rate_limits.five_hour.used_percentage` is present and **> `API_FIVE_HOUR_THR
    date -d @{resets_at}
    ```
 2. Print: `"⏸ 5-hour usage limit at {usage}% — auto-pausing until reset at {reset_time}. BAD will resume automatically."`
-3. **If `TIMER_SUPPORT=true`:** compute a cron expression from the reset epoch and schedule a resume:
+3. **If `TIMER_SUPPORT=true`:** compute a cron expression 10 minutes after the reset epoch (to avoid a false positive if the reset lands slightly late) and schedule a resume:
    ```bash
    # macOS
-   date -r {resets_at} '+%M %H %d %m *'
+   date -r $(( {resets_at} + 600 )) '+%M %H %d %m *'
    # Linux
-   date -d @{resets_at} '+%M %H %d %m *'
+   date -d @$(( {resets_at} + 600 )) '+%M %H %d %m *'
    ```
    Call `CronCreate`:
    - `cron`: expression from above
@@ -79,12 +79,12 @@ If `rate_limits.seven_day.used_percentage` is present and **> `API_SEVEN_DAY_THR
    date -d @{resets_at}
    ```
 2. Print: `"⏸ 7-day usage limit at {usage}% — auto-pausing until reset at {reset_time}. BAD will resume automatically."`
-3. **If `TIMER_SUPPORT=true`:** compute a cron expression from the reset epoch and schedule a resume:
+3. **If `TIMER_SUPPORT=true`:** compute a cron expression 10 minutes after the reset epoch (to avoid a false positive if the reset lands slightly late) and schedule a resume:
    ```bash
    # macOS
-   date -r {resets_at} '+%M %H %d %m *'
+   date -r $(( {resets_at} + 600 )) '+%M %H %d %m *'
    # Linux
-   date -d @{resets_at} '+%M %H %d %m *'
+   date -d @$(( {resets_at} + 600 )) '+%M %H %d %m *'
    ```
    Call `CronCreate`:
    - `cron`: expression from above
