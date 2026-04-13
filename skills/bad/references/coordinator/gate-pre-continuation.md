@@ -11,7 +11,7 @@ If `NOTIFY_SOURCE` is not `"terminal"` (i.e. a channel like Telegram is configur
 Read the current session state using the Bash tool:
 
 ```bash
-cat "${TMPDIR:-/tmp}/bad-session-state.json" 2>/dev/null || echo "{}"
+cat ".claude/bad-session-state.json" 2>/dev/null || echo "{}"
 ```
 
 Parse the output as JSON. The relevant fields:
@@ -22,7 +22,7 @@ Parse the output as JSON. The relevant fields:
 - `rate_limits.seven_day.used_percentage` — 0–100 (Claude Code only)
 - `rate_limits.seven_day.resets_at` — Unix epoch seconds when the 7-day window resets
 
-**If the file does not exist** — print `"⚠️ Pre-Continuation: session state unavailable (bad-session-state.json missing — check that the session-state hook is installed via /bad setup Step 3). Skipping rate limit checks."` and proceed.
+**If the file does not exist** — print `"⚠️ Pre-Continuation: session state unavailable (.claude/bad-session-state.json missing — check that the session-state hook is installed via /bad setup Step 3). Skipping rate limit checks."` and proceed.
 
 **If a specific field is absent** — silently skip only that check. If the file exists but `rate_limits` is entirely absent, print `"⚠️ Pre-Continuation: rate limit data not in session state — skipping usage checks."` once (not on every gate).
 
