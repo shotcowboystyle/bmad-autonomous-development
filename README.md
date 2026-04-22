@@ -31,10 +31,13 @@ Once your epics and stories are planned, BMAD takes over:
   1. `brew install gh`
   2. `gh auth login`
   3. Add to your `.zshrc` so BMAD's subagents can connect to GitHub:
+
      ```bash
      export GITHUB_PERSONAL_ACCESS_TOKEN=$(gh auth token)
      ```
+
   4. If running Claude Code with sandbox mode, allow `gh` to reach GitHub's API — add to `.claude/settings.json`:
+
      ```json
      {
        "sandbox": {
@@ -47,7 +50,7 @@ Once your epics and stories are planned, BMAD takes over:
 ## Installation
 
 ```bash
-npx skills add https://github.com/stephenleo/bmad-autonomous-development
+npx skills add https://github.com/shotcowboystyle/bmad-autonomous-development
 ```
 
 Then run setup in your project:
