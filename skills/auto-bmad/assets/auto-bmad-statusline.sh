@@ -1,18 +1,20 @@
 #!/bin/bash
-# BAD session-state capture — installed to {project-root}/.claude/bad-statusline.sh
-# during /bad setup. Configured as the Claude Code statusLine script so it runs
-# after every API response and writes the session JSON to .claude/bad-session-state.json
-# (next to this script) that the BAD coordinator reads during Pre-Continuation Checks.
+# BMAD session-state capture — installed to {project-root}/.claude/auto-bmad-statusline.sh
+# during /auto-bmad setup. Configured as the Claude Code statusLine script so it runs
+# after every API response and writes the session JSON to .claude/auto-bmad-session-state.json
+# (next to this script) that the BMAD coordinator reads during Pre-Continuation Checks.
 #
 # To chain with an existing statusline script:
 #   SESSION_JSON=$(cat)
 #   echo "$SESSION_JSON" | /path/to/your-existing-script.sh
 #   SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-#   echo "$SESSION_JSON" > "$SCRIPT_DIR/bad-session-state.json"
+#   echo "$SESSION_JSON" > "$SCRIPT_DIR/auto-bmad-session-state.json.tmp"
+#   mv "$SCRIPT_DIR/auto-bmad-session-state.json.tmp" "$SCRIPT_DIR/auto-bmad-session-state.json"
 
 SESSION_JSON=$(cat)
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
-echo "$SESSION_JSON" > "$SCRIPT_DIR/bad-session-state.json"
+echo "$SESSION_JSON" > "$SCRIPT_DIR/auto-bmad-session-state.json.tmp"
+mv "$SCRIPT_DIR/auto-bmad-session-state.json.tmp" "$SCRIPT_DIR/auto-bmad-session-state.json"
 # Output nothing — add your own status text here if desired, e.g.:
 # python3 -c "
 # import sys, json

@@ -4,7 +4,7 @@ setup-activity-hook.py — installs a PostToolUse hook that logs every tool call
 to per-subagent files under the Claude session history directory.
 
 Each subagent gets its own log file keyed by session_id:
-  ~/.claude/projects/<encoded-project-path>/bad-logs/<session_id>.log
+  ~/.claude/projects/<encoded-project-path>/auto-bmad-logs/<session_id>.log
 
 Log format (tab-separated):
   <ISO timestamp> | <tool_name> | <key input detail>
@@ -16,21 +16,22 @@ Usage:
 import argparse
 import json
 import os
+import shlex
 from pathlib import Path
 
 
-BAD_HOOK_MARKER = "bad-logs"
+BMAD_HOOK_MARKER = "auto-bmad-logs"
 
 
 def compute_log_dir(project_root: str) -> str:
     """
-    Derives the per-project bad-logs directory path.
+    Derives the per-project auto-bmad-logs directory path.
     Claude stores session history at: ~/.claude/projects/<encoded>/
     where <encoded> is the absolute path with leading / removed and / replaced by -.
     """
     home = str(Path.home())
     encoded = project_root.lstrip("/").replace("/", "-")
-    return f"{home}/.claude/projects/{encoded}/bad-logs"
+    return f"{home}/.claude/projects/{encoded}/auto-bmad-logs"
 
 
 def build_hook_command(log_dir: str, project_root: str) -> str:
@@ -38,15 +39,17 @@ def build_hook_command(log_dir: str, project_root: str) -> str:
     Builds the shell command that runs on every PostToolUse event.
 
     Directory structure:
-      bad-logs/coordinator/<session_id>.log      — coordinator (cwd == project root)
-      bad-logs/<story-basename>/<session_id>.log — story subagents (cwd is a worktree)
+      auto-bmad-logs/coordinator/<session_id>.log      — coordinator (cwd == project root)
+      auto-bmad-logs/<story-basename>/<session_id>.log — story subagents (cwd is a worktree)
 
     The project root is baked in at setup time so the jq expression can compare
     cwd against it to distinguish the coordinator from story subagents.
 
-    Reads stdin once into _BAD_IN, then extracts session_id and agent slug.
+    Reads stdin once into _BMAD_IN, then extracts session_id and agent slug.
     Uses || true so hook failures never block Claude.
     """
+    safe_project_root = shlex.quote(project_root)
+    safe_log_dir = shlex.quote(log_dir)
     jq_entry = (
         "[now|todate, .tool_name, "
         "(.tool_input.file_path // .tool_input.command // .tool_input.description // "
@@ -54,14 +57,14 @@ def build_hook_command(log_dir: str, project_root: str) -> str:
         '(.tool_input | to_entries | map(.value | tostring) | first // ""))'
         '] | join(" | ")'
     )
-    jq_agent = f'if .cwd == "{project_root}" then "coordinator" else (.cwd // "" | split("/") | last) end'
+    jq_agent = f'if .cwd == {safe_project_root} then "coordinator" else (.cwd // "" | split("/") | last) end'
     return (
-        f'_BAD_IN=$(cat); '
-        f'_BAD_DIR="{log_dir}"; '
-        f'_BAD_SID=$(printf \'%s\' "$_BAD_IN" | jq -r \'.session_id // "unknown"\' 2>/dev/null); '
-        f'_BAD_AGENT=$(printf \'%s\' "$_BAD_IN" | jq -r \'{jq_agent}\' 2>/dev/null); '
-        f'mkdir -p "$_BAD_DIR/$_BAD_AGENT" 2>/dev/null; '
-        f'printf \'%s\' "$_BAD_IN" | jq -r \'{jq_entry}\' >> "$_BAD_DIR/$_BAD_AGENT/$_BAD_SID.log" 2>/dev/null || true'
+        f'_BMAD_IN=$(cat); '
+        f'_BMAD_DIR={safe_log_dir}; '
+        f'_BMAD_SID=$(printf \'%s\' "$_BMAD_IN" | jq -r \'.session_id // "unknown"\' 2>/dev/null); '
+        f'_BMAD_AGENT=$(printf \'%s\' "$_BMAD_IN" | jq -r \'{jq_agent}\' 2>/dev/null); '
+        f'mkdir -p "$_BMAD_DIR/$_BMAD_AGENT" 2>/dev/null; '
+        f'printf \'%s\' "$_BMAD_IN" | jq -r \'{jq_entry}\' >> "$_BMAD_DIR/$_BMAD_AGENT/$_BMAD_SID.log" 2>/dev/null || true'
     )
 
 
@@ -84,13 +87,13 @@ def save_settings(path: str, settings: dict) -> None:
 
 
 def install_hook(settings: dict, command: str) -> dict:
-    """Add BAD activity hook, removing any existing one first (anti-zombie)."""
+    """Add BMAD activity hook, removing any existing one first (anti-zombie)."""
     hooks = settings.setdefault("hooks", {})
     entries = hooks.get("PostToolUse", [])
-    # Remove existing BAD activity hook
+    # Remove existing BMAD activity hook
     entries = [
         e for e in entries
-        if not any(BAD_HOOK_MARKER in h.get("command", "") for h in e.get("hooks", []))
+        if not any(BMAD_HOOK_MARKER in h.get("command", "") for h in e.get("hooks", []))
     ]
     entries.append({
         "matcher": "",
@@ -102,12 +105,12 @@ def install_hook(settings: dict, command: str) -> dict:
 
 
 def remove_hook(settings: dict) -> dict:
-    """Remove BAD activity hook."""
+    """Remove BMAD activity hook."""
     hooks = settings.get("hooks", {})
     entries = hooks.get("PostToolUse", [])
     entries = [
         e for e in entries
-        if not any(BAD_HOOK_MARKER in h.get("command", "") for h in e.get("hooks", []))
+        if not any(BMAD_HOOK_MARKER in h.get("command", "") for h in e.get("hooks", []))
     ]
     if entries:
         hooks["PostToolUse"] = entries
@@ -122,7 +125,7 @@ def remove_hook(settings: dict) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Install or remove the BAD activity log hook in .claude/settings.local.json"
+        description="Install or remove the BMAD activity log hook in .claude/settings.local.json"
     )
     parser.add_argument(
         "--settings-path",
@@ -137,7 +140,7 @@ def main() -> None:
     parser.add_argument(
         "--remove",
         action="store_true",
-        help="Remove the BAD activity hook instead of installing it",
+        help="Remove the BMAD activity hook instead of installing it",
     )
     args = parser.parse_args()
 
@@ -147,13 +150,13 @@ def main() -> None:
     if args.remove:
         settings = remove_hook(settings)
         save_settings(args.settings_path, settings)
-        print(f"BAD activity hook removed from {args.settings_path}")
+        print(f"BMAD activity hook removed from {args.settings_path}")
     else:
         log_dir = compute_log_dir(project_root)
         command = build_hook_command(log_dir, project_root)
         settings = install_hook(settings, command)
         save_settings(args.settings_path, settings)
-        print(f"BAD activity hook installed")
+        print(f"BMAD activity hook installed")
         print(f"  settings  : {args.settings_path}")
         print(f"  log dir   : {log_dir}/coordinator/<session_id>.log")
         print(f"            : {log_dir}/<story-basename>/<session_id>.log")

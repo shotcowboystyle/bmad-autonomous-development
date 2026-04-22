@@ -36,8 +36,8 @@ STEPS:
 4. GitHub integration — run `gh auth status` first. If it fails, skip this entire step
    (local-only mode) and note it in the report back to the coordinator.
 
-   a. Ensure the `bad` label exists:
-        gh label create bad --color "0075ca" \
+   a. Ensure the `auto-bmad` label exists:
+        gh label create auto-bmad --color "0075ca" \
           --description "Managed by BMad Autonomous Development" 2>/dev/null || true
 
    b. For each story in `_bmad-output/planning-artifacts/epics.md` that does not already
@@ -47,7 +47,7 @@ STEPS:
             gh issue create \
               --title "Story {number}: {short_description}" \
               --body "{story section content from epics.md}" \
-              --label "bad"
+              --label "auto-bmad"
         - Write the returned issue number back into that story's section in epics.md,
           directly under the story heading:
             **GH Issue:** #{number}

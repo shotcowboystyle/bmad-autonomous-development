@@ -1,6 +1,6 @@
 # Notify Pattern
 
-Use this pattern every time a `📣 Notify:` callout appears **anywhere in the BAD skill** — including inside the Timer Pattern and Monitor Pattern.
+Use this pattern every time a `📣 Notify:` callout appears **anywhere in the BMAD skill** — including inside the Timer Pattern and Monitor Pattern.
 
 **Always print the message in the conversation** — this keeps the in-session transcript readable regardless of channel configuration.
 

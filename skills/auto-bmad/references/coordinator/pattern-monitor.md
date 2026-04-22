@@ -1,6 +1,6 @@
 # Monitor Pattern
 
-Use this pattern when `MONITOR_SUPPORT=true`. It covers two use cases in BAD: CI status polling (Step 6) and PR-merge watching (Phase 4 Branch B). The caller supplies the poll script and the reaction logic.
+Use this pattern when `MONITOR_SUPPORT=true`. It covers two use cases in BMAD: CI status polling (Step 6) and PR-merge watching (Phase 4 Branch B). The caller supplies the poll script and the reaction logic.
 
 > **Requires Claude Code v2.1.98+.** Uses the same Bash permission rules. Not available on Amazon Bedrock, Google Vertex AI, or Microsoft Azure Foundry — set `MONITOR_SUPPORT=false` on those platforms.
 

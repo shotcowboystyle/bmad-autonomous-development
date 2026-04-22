@@ -1,17 +1,17 @@
 ---
-name: bad
-description: 'BMad Autonomous Development — orchestrates parallel story implementation pipelines. Builds a dependency graph, updates PR status from GitHub, picks stories from the backlog, and runs each through create → dev → review → PR in parallel — each story isolated in its own git worktree — using dedicated subagents with fresh context windows. Loops through the entire sprint plan in batches, with optional epic retrospective. Use when the user says "run BAD", "start autonomous development", "automate the sprint", "run the pipeline", "kick off the sprint", or "start the dev pipeline". Run /bad setup or /bad configure to install and configure the module.'
+name: auto-bmad
+description: 'BMad Autonomous Development — orchestrates parallel story implementation pipelines. Builds a dependency graph, updates PR status from GitHub, picks stories from the backlog, and runs each through create → dev → review → PR in parallel — each story isolated in its own git worktree — using dedicated subagents with fresh context windows. Loops through the entire sprint plan in batches, with optional epic retrospective. Use when the user says "run BMAD", "start autonomous development", "automate the sprint", "run the pipeline", "kick off the sprint", or "start the dev pipeline". Run /auto-bmad setup or /auto-bmad configure to install and configure the module.'
 ---
 
-# BAD — BMad Autonomous Development
+# BMAD — BMad Autonomous Development
 
 ## On Activation
 
-Check if `{project-root}/_bmad/config.yaml` contains a `bad` section. If not — or if the user passed `setup` or `configure` as an argument — load `./assets/module-setup.md` and complete registration before proceeding.
+Check if `{project-root}/_bmad/config.yaml` contains an `auto-bmad` section. If not — or if the user passed `setup` or `configure` as an argument — load `./assets/module-setup.md` and complete registration before proceeding.
 
 The `setup`/`configure` argument always triggers `./assets/module-setup.md`, even if the module is already registered (for reconfiguration).
 
-After setup completes (or if config already exists), load the `bad` config and continue to Startup below.
+After setup completes (or if config already exists), load the `auto-bmad` config and continue to Startup below.
 
 You are a **coordinator**. You delegate every step to subagents via the **Agent tool**. You never read files, run git/gh commands, or write to disk yourself.
 
@@ -33,9 +33,9 @@ Before doing anything else, determine how to send notifications:
    - If another channel type is connected, save its equivalent identifier.
    - If no channel is connected, set `NOTIFY_SOURCE="terminal"`.
 
-2. **Send the BAD started notification** using the [Notify Pattern](references/coordinator/pattern-notify.md):
+2. **Send the BMAD started notification** using the [Notify Pattern](references/coordinator/pattern-notify.md):
    ```
-   🤖 BAD started — building dependency graph...
+   🤖 BMAD started — building dependency graph...
    ```
 
 Then proceed to Phase 0.
@@ -44,7 +44,7 @@ Then proceed to Phase 0.
 
 ## Configuration
 
-Load base values from the `bad` section of `_bmad/config.yaml` at startup. Then parse any `KEY=VALUE` overrides from arguments passed to `/bad` — args win over config. For any variable not in config or args, use the default below.
+Load base values from the `auto-bmad` section of `_bmad/config.yaml` at startup. Then parse any `KEY=VALUE` overrides from arguments passed to `/auto-bmad` — args win over config. For any variable not in config or args, use the default below.
 
 | Variable | Config Key | Default | Description |
 |----------|-----------|---------|-------------|
@@ -66,7 +66,7 @@ Load base values from the `bad` section of `_bmad/config.yaml` at startup. Then 
 
 After resolving all values, print the active configuration so the user can confirm before Phase 0 begins:
 ```
-⚙️ BAD config: MAX_PARALLEL_STORIES=3, RUN_CI_LOCALLY=false, AUTO_PR_MERGE=false, MODEL_STANDARD=sonnet, MODEL_QUALITY=opus, TIMER_SUPPORT=true, ...
+⚙️ BMAD config: MAX_PARALLEL_STORIES=3, RUN_CI_LOCALLY=false, AUTO_PR_MERGE=false, MODEL_STANDARD=sonnet, MODEL_QUALITY=opus, TIMER_SUPPORT=true, ...
 ```
 
 ---
@@ -215,7 +215,7 @@ Launch all stories' Step 1 subagents **in a single message** (parallel). Each st
 
 Step names: Step 1 — Create, Step 2 — ATDD, Step 3 — Develop, Step 4 — Test review, Step 5 — Code review, Step 6 — PR + CI, Step 7 — PR review.
 
-**On failure:** stop that story's pipeline. Report step, story, and error. Other stories continue.  
+**On failure:** stop that story's pipeline. Report step, story, and error. Other stories continue.
 **Exception:** rate/usage limit failures → run Pre-Continuation Checks (which auto-pauses until reset) then retry.
 
 **Hung subagents:** when `MONITOR_SUPPORT=true` and the activity log hook is installed (Step 4 of setup), use the [Watchdog Pattern](references/coordinator/pattern-watchdog.md) when spawning Steps 2, 3, 4, and 5 to detect stale agents.
@@ -469,13 +469,13 @@ Using the assessment report:
    📣 **Notify:** `🎉 Epic {current_epic_name} complete! Running retrospective in {RETRO_TIMER_SECONDS ÷ 60} min...`
 2. Start a timer using the **[Timer Pattern](references/coordinator/pattern-timer.md)** with:
    - **Duration:** `RETRO_TIMER_SECONDS`
-   - **Fire prompt:** `"BAD_RETRO_TIMER_FIRED — The retrospective countdown has elapsed. Auto-run the retrospective: spawn a MODEL_STANDARD subagent (yolo mode) to run /bmad-retrospective, accept all changes. Run Pre-Continuation Checks after it completes, then proceed to Phase 4 Step 3."`
+   - **Fire prompt:** `"BMAD_RETRO_TIMER_FIRED — The retrospective countdown has elapsed. Auto-run the retrospective: spawn a MODEL_STANDARD subagent (yolo mode) to run /bmad-retrospective, accept all changes. Run Pre-Continuation Checks after it completes, then proceed to Phase 4 Step 3."`
    - **[C] label:** `Run retrospective now`
    - **[S] label:** `Skip retrospective`
-   - **[X] label:** `Stop BAD`
+   - **[X] label:** `Stop BMAD`
    - **[C] / FIRED action:** Spawn MODEL_STANDARD subagent (yolo mode) to run `/bmad-retrospective`. Accept all changes. Run Pre-Continuation Checks after.
    - **[S] action:** Skip retrospective.
-   - **[X] action:** `CronDelete(JOB_ID)`, stop BAD, print final summary, and 📣 **Notify:** `🛑 BAD stopped by user.`
+   - **[X] action:** `CronDelete(JOB_ID)`, stop BMAD, print final summary, and 📣 **Notify:** `🛑 BMAD stopped by user.`
 3. Proceed to Step 3 after the retrospective decision resolves.
 
 ### Step 3: Gate & Continue
@@ -484,9 +484,9 @@ Using the assessment report from Step 2, follow the applicable branch:
 
 **Branch A — All epics complete (`all_epics_complete = true`):**
 ```
-🏁 All epics are complete — sprint is done! BAD is stopping.
+🏁 All epics are complete — sprint is done! BMAD is stopping.
 ```
-📣 **Notify:** `🏁 Sprint complete — all epics done! BAD is stopping.`
+📣 **Notify:** `🏁 Sprint complete — all epics done! BMAD is stopping.`
 
 **Branch B — More work remains:**
 
@@ -502,11 +502,11 @@ Using the assessment report from Step 2, follow the applicable branch:
    - Fill in `BATCH_PRS` from the Phase 0 pending-PR report (space-separated numbers, e.g. `"101 102 103"`). Use the PR-merge watcher script from [monitor-pattern.md](references/coordinator/pattern-monitor.md) with that value substituted. Save the Monitor handle as `PR_MONITOR`.
    - Also start a CronCreate fallback timer using the [Timer Pattern](references/coordinator/pattern-timer.md) with:
      - **Duration:** `WAIT_TIMER_SECONDS`
-     - **Fire prompt:** `"BAD_WAIT_TIMER_FIRED — Max wait elapsed. Stop PR_MONITOR, run Pre-Continuation Checks, then re-run Phase 0."`
+     - **Fire prompt:** `"BMAD_WAIT_TIMER_FIRED — Max wait elapsed. Stop PR_MONITOR, run Pre-Continuation Checks, then re-run Phase 0."`
      - **[C] label:** `Continue now`
-     - **[S] label:** `Stop BAD`
+     - **[S] label:** `Stop BMAD`
      - **[C] / FIRED action:** Stop `PR_MONITOR`, run Pre-Continuation Checks, then re-run Phase 0.
-     - **[S] action:** Stop `PR_MONITOR`, CronDelete, stop BAD, print final summary, and 📣 **Notify:** `🛑 BAD stopped by user.`
+     - **[S] action:** Stop `PR_MONITOR`, CronDelete, stop BMAD, print final summary, and 📣 **Notify:** `🛑 BMAD stopped by user.`
    - **On `MERGED: #N` event:** log progress — `✅ PR #N merged — waiting for remaining batch PRs`; keep `PR_MONITOR` running.
    - **On `ALL_MERGED` event:** CronDelete the fallback timer, stop `PR_MONITOR`, run Pre-Continuation Checks, re-run Phase 0.
    - 📣 **Notify:** `⏳ Watching for PR merges (max wait: {WAIT_TIMER_SECONDS ÷ 60} min)...`
@@ -514,11 +514,11 @@ Using the assessment report from Step 2, follow the applicable branch:
    **If `MONITOR_SUPPORT=false` or `AUTO_PR_MERGE=true` — Timer only:**
    - Use the [Timer Pattern](references/coordinator/pattern-timer.md) with:
      - **Duration:** `WAIT_TIMER_SECONDS`
-     - **Fire prompt:** `"BAD_WAIT_TIMER_FIRED — The post-batch wait has elapsed. Run Pre-Continuation Checks, then re-run Phase 0, then proceed to Phase 1."`
+     - **Fire prompt:** `"BMAD_WAIT_TIMER_FIRED — The post-batch wait has elapsed. Run Pre-Continuation Checks, then re-run Phase 0, then proceed to Phase 1."`
      - **[C] label:** `Continue now`
-     - **[S] label:** `Stop BAD`
+     - **[S] label:** `Stop BMAD`
      - **[C] / FIRED action:** Run Pre-Continuation Checks, then re-run Phase 0.
-     - **[S] action:** Stop BAD, print a final summary, and 📣 **Notify:** `🛑 BAD stopped by user.`
+     - **[S] action:** Stop BMAD, print a final summary, and 📣 **Notify:** `🛑 BMAD stopped by user.`
 
 3. After Phase 0 completes:
    - At least one story unblocked → proceed to Phase 1.

@@ -1,5 +1,5 @@
 {
-  "name": "bmad-bad",
+  "name": "auto-bmad",
   "owner": { "name": "stephenleo" },
   "license": "MIT",
   "homepage": "https://github.com/stephenleo/bmad-autonomous-development",
@@ -21,13 +21,13 @@
   ],
   "plugins": [
     {
-      "name": "bmad-bad",
+      "name": "auto-bmad",
       "source": "./",
       "description": "Autonomous development orchestrator for the BMad Method. Runs fully autonomous parallel multi-agent pipelines through the full story lifecycle (create → dev → review → PR) driven by your sprint backlog and dependency graph.",
       "version": "1.2.0",
       "author": { "name": "Marie Stephen Leo" },
       "skills": [
-        "./skills/bad"
+        "./skills/auto-bmad"
       ]
     }
   ]

@@ -1,12 +1,12 @@
-# BAD — BMad Autonomous Development
+# BMAD — BMad Autonomous Development
 
 > 🤖 Autonomous development orchestrator for the BMad Method. Runs fully autonomous parallel multi-agent pipelines through the full story lifecycle (create → dev → review → PR) driven by your sprint backlog and dependency graph.
 
-<img src="docs/bad-overview.png" alt="BAD Overview" width="800"/>
+<img src="docs/auto-bmad-overview.png" alt="BMAD Overview" width="800"/>
 
 ## Overview
 
-BAD is a [BMad Method](https://docs.bmad-method.org/) module that automates your entire sprint execution. A lightweight coordinator orchestrates the pipeline — it never reads files or writes code itself. **Every unit of work is delegated to a dedicated subagent with a fresh context window**, keeping each agent fully focused on its single task.
+BMAD is a [BMad Method](https://docs.bmad-method.org/) module that automates your entire sprint execution. A lightweight coordinator orchestrates the pipeline — it never reads files or writes code itself. **Every unit of work is delegated to a dedicated subagent with a fresh context window**, keeping each agent fully focused on its single task.
 
 ## Requirements
 
@@ -15,7 +15,7 @@ BAD is a [BMad Method](https://docs.bmad-method.org/) module that automates your
 - Git + GitHub CLI (`gh`) installed and authenticated:
   1. `brew install gh`
   2. `gh auth login`
-  3. Add to your `.zshrc` so BAD's subagents can connect to GitHub:
+  3. Add to your `.zshrc` so BMAD's subagents can connect to GitHub:
      ```bash
      export GITHUB_PERSONAL_ACCESS_TOKEN=$(gh auth token)
      ```
@@ -38,12 +38,12 @@ npx skills add https://github.com/stephenleo/bmad-autonomous-development
 Then run setup in your project:
 
 ```
-/bad setup
+/auto-bmad setup
 ```
 
 ## Usage
 
-BAD spawns subagents for every step of the pipeline. For the full autonomous experience — no permission prompts — start Claude Code with:
+BMAD spawns subagents for every step of the pipeline. For the full autonomous experience — no permission prompts — start Claude Code with:
 
 ```bash
 claude --dangerously-skip-permissions
@@ -52,20 +52,20 @@ claude --dangerously-skip-permissions
 Then run:
 
 ```
-/bad
+/auto-bmad
 ```
 
-BAD can also be triggered naturally: *"run BAD"*, *"kick off the sprint"*, *"automate the sprint"*, *"start autonomous development"*, *"run the pipeline"*, *"start the dev pipeline"*
+BMAD can also be triggered naturally: *"run BMAD"*, *"kick off the sprint"*, *"automate the sprint"*, *"start autonomous development"*, *"run the pipeline"*, *"start the dev pipeline"*
 
 Run with optional runtime overrides:
 
 ```
-/bad MAX_PARALLEL_STORIES=2 AUTO_PR_MERGE=true MODEL_STANDARD=opus
+/auto-bmad MAX_PARALLEL_STORIES=2 AUTO_PR_MERGE=true MODEL_STANDARD=opus
 ```
 
 ## Pipeline
 
-Once your epics and stories are planned, BAD takes over:
+Once your epics and stories are planned, BMAD takes over:
 
 1. *(`MODEL_STANDARD` subagent)* Builds a dependency graph from your sprint backlog — maps story dependencies, syncs GitHub PR status, and identifies what's ready to work on
 2. Picks ready stories from the graph, respecting epic ordering and dependencies; runs a blocking epic-level test design step (`bmad-testarch-test-design`) once when starting each new epic
@@ -78,12 +78,12 @@ Once your epics and stories are planned, BAD takes over:
    - **Step 6** *(`MODEL_STANDARD` subagent)* — commit, push, open PR, monitor CI, fix any failing checks
    - **Step 7** *(`MODEL_STANDARD` subagent)* — PR code review: reviews diff, applies fixes, pushes clean
 4. *(`MODEL_STANDARD` subagent)* Optionally auto-merges batch PRs sequentially (lowest story number first), resolving any conflicts
-5. On epic completion, optionally runs a retrospective (`bmad-retrospective`) after a `RETRO_TIMER_SECONDS` countdown — the user can trigger it early, skip it, or stop BAD
+5. On epic completion, optionally runs a retrospective (`bmad-retrospective`) after a `RETRO_TIMER_SECONDS` countdown — the user can trigger it early, skip it, or stop BMAD
 6. Waits, then loops back for the next batch — until the entire sprint is done
 
 ## Configuration
 
-BAD is configured at install time (`/bad setup`) and stores settings in the `bad:` section of `_bmad/config.yaml`. All values can be overridden at runtime with `KEY=VALUE` args.
+BMAD is configured at install time (`/auto-bmad setup`) and stores settings in the `auto-bmad:` section of `_bmad/config.yaml`. All values can be overridden at runtime with `KEY=VALUE` args.
 
 | Variable | Default | Description |
 |---|---|---|
@@ -105,7 +105,7 @@ BAD is configured at install time (`/bad setup`) and stores settings in the `bad
 
 ## Agent Harness Support
 
-BAD is harness-agnostic. Setup detects your installed harnesses by checking for their directories at the project root (`.claude/` for Claude Code, `.cursor/` for Cursor, `.github/skills/` for GitHub Copilot, etc.) and configures platform-specific settings accordingly:
+BMAD is harness-agnostic. Setup detects your installed harnesses by checking for their directories at the project root (`.claude/` for Claude Code, `.cursor/` for Cursor, `.github/skills/` for GitHub Copilot, etc.) and configures platform-specific settings accordingly:
 
 - **Claude Code** — native timer support (`CronCreate`), Claude model names (`sonnet`/`opus`/`haiku`), 5-hour and 7-day rate limit thresholds
 - **Other harnesses** — prompt-based continuation, free-text model names, single generic usage threshold
@@ -117,7 +117,7 @@ In multi-harness projects, setup runs once per detected harness and stores per-h
 To update your configuration at any time:
 
 ```
-/bad configure
+/auto-bmad configure
 ```
 
 ## License

@@ -1,6 +1,6 @@
 # Watchdog Pattern
 
-Use this pattern when `MONITOR_SUPPORT=true` and the activity log hook is installed (Step 4 of BAD setup). It detects subagents that have gone silent — no tool calls for a configurable period — and alerts via Telegram so the user can decide whether to wait, retry, or skip.
+Use this pattern when `MONITOR_SUPPORT=true` and the activity log hook is installed (Step 4 of BMAD setup). It detects subagents that have gone silent — no tool calls for a configurable period — and alerts via Telegram so the user can decide whether to wait, retry, or skip.
 
 > **Requires:** Activity log hook installed via `scripts/setup-activity-hook.py`. Falls back to a fixed-timeout CronCreate watchdog when `MONITOR_SUPPORT=false`.
 
@@ -16,7 +16,7 @@ Use this pattern when `MONITOR_SUPPORT=true` and the activity log hook is instal
 
 The activity hook writes to:
 ```
-~/.claude/projects/<encoded-project>/bad-logs/<agent-slug>/<session_id>.log
+~/.claude/projects/<encoded-project>/auto-bmad-logs/<agent-slug>/<session_id>.log
 ```
 
 Where:
@@ -24,7 +24,7 @@ Where:
 - `<agent-slug>` = `coordinator` for the coordinator; worktree basename for story subagents (e.g. `story-4-auth-controller`)
 - `<session_id>` = unique per Agent() call — not known until the agent starts writing
 
-Because `session_id` is only known once the subagent has made its first tool call, watch the **directory** (`bad-logs/<agent-slug>/`) for any new or updated file rather than a specific filename.
+Because `session_id` is only known once the subagent has made its first tool call, watch the **directory** (`auto-bmad-logs/<agent-slug>/`) for any new or updated file rather than a specific filename.
 
 ## Poll script
 
@@ -35,15 +35,15 @@ LOG_DIR="$1"
 AGENT_LABEL="$2"
 STALE_MINUTES="${3:-60}"
 
-touch /tmp/bad_watchdog_baseline
+touch /tmp/auto_bmad_watchdog_$$
 
 while true; do
   # Find newest log file in the agent's log directory
-  NEWEST=$(find "$LOG_DIR" -name "*.log" -newer /tmp/bad_watchdog_baseline -type f 2>/dev/null | head -1)
+  NEWEST=$(find "$LOG_DIR" -name "*.log" -newer /tmp/auto_bmad_watchdog_$$ -type f 2>/dev/null | head -1)
 
   if [ -n "$NEWEST" ]; then
     echo "ALIVE: $AGENT_LABEL — activity detected"
-    touch /tmp/bad_watchdog_baseline
+    touch /tmp/auto_bmad_watchdog_$$
     sleep 120
     continue
   fi
@@ -76,8 +76,8 @@ done
 Before spawning a long-running subagent (Steps 2, 3, 4, 5 are the most likely to hang):
 
 ```
-1. Compute LOG_DIR = ~/.claude/projects/<encoded>/bad-logs/<agent-slug>/
-   (e.g. bad-logs/story-4-auth-controller/ for story 4's dev step)
+1. Compute LOG_DIR = ~/.claude/projects/<encoded>/auto-bmad-logs/<agent-slug>/
+   (e.g. auto-bmad-logs/story-4-auth-controller/ for story 4's dev step)
 
 2. Spawn subagent with run_in_background=true
 
@@ -99,7 +99,7 @@ Last activity: {last_line}
 [K] Keep waiting another {STALE_TIMEOUT_MINUTES} min
 [R] Retry — respawn this step from the start
 [S] Skip this story and continue with others
-[A] Abort BAD
+[A] Abort BMAD
 ```
 
 Wait for user reply before taking any action.
@@ -107,7 +107,7 @@ Wait for user reply before taking any action.
 - **[K]** — restart the Monitor watchdog (reset the staleness baseline); keep the background agent running
 - **[R]** — stop Monitor; note the story as failed at this step; spawn a fresh subagent for the same step; restart Monitor
 - **[S]** — stop Monitor; mark story as failed; continue pipeline with remaining stories
-- **[A]** — stop Monitor; halt BAD; send summary of completed work
+- **[A]** — stop Monitor; halt BMAD; send summary of completed work
 
 ## If `MONITOR_SUPPORT=false`
 
@@ -116,10 +116,10 @@ Use a CronCreate timer as a fixed-timeout fallback. Set the timer to `STALE_TIME
 ```
 CronCreate(
   fire_in_seconds = STALE_TIMEOUT_MINUTES * 120,
-  prompt = "BAD_WATCHDOG_FIRED:<agent_label> — fixed timeout elapsed. Send Telegram alert and await user reply."
+  prompt = "BMAD_WATCHDOG_FIRED:<agent_label> — fixed timeout elapsed. Send Telegram alert and await user reply."
 )
 ```
 
 ## Configuration
 
-`STALE_TIMEOUT_MINUTES` — read from BAD config. Default: `60`. Set lower (e.g. `30`) for faster detection; set higher (e.g. `90`) if your dev steps routinely involve long read-heavy analysis phases.
+`STALE_TIMEOUT_MINUTES` — read from BMAD config. Default: `60`. Set lower (e.g. `30`) for faster detection; set higher (e.g. `90`) if your dev steps routinely involve long read-heavy analysis phases.

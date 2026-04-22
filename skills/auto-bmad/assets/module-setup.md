@@ -1,24 +1,24 @@
-# BAD Module Setup
+# BMAD Module Setup
 
 Standalone module self-registration for BMad Autonomous Development. This file is loaded when:
 - The user passes `setup`, `configure`, or `install` as an argument
-- The module is not yet registered in `{project-root}/_bmad/config.yaml` (no `bad:` section)
+- The module is not yet registered in `{project-root}/_bmad/config.yaml` (no `auto-bmad:` section)
 
 ## Overview
 
-Registers BAD into a project. Writes to:
+Registers BMAD into a project. Writes to:
 - **`{project-root}/_bmad/config.yaml`** — shared project config (universal settings + harness-specific settings)
 - **`{project-root}/_bmad/config.user.yaml`** — personal settings (gitignored): `user_name`, `communication_language`, and any `user_setting: true` variable
-- **`{project-root}/_bmad/module-help.csv`** — registers BAD capabilities for the help system
+- **`{project-root}/_bmad/module-help.csv`** — registers BMAD capabilities for the help system
 
-Both config scripts use an anti-zombie pattern — existing `bad` entries are removed before writing fresh ones, so stale values never persist.
+Both config scripts use an anti-zombie pattern — existing `auto-bmad` entries are removed before writing fresh ones, so stale values never persist.
 
 `{project-root}` is a **literal token** in config values — never substitute it with an actual path.
 
 ## Step 1: Check Existing Config
 
 1. Read `./assets/module.yaml` for module metadata.
-2. Check if `{project-root}/_bmad/config.yaml` has a `bad` section — if so, inform the user this is a reconfiguration and show existing values as defaults.
+2. Check if `{project-root}/_bmad/config.yaml` has an `auto-bmad` section — if so, inform the user this is a reconfiguration and show existing values as defaults.
 3. Check for inline args (e.g. `accept all defaults`, `--headless`, or `MAX_PARALLEL_STORIES=5`) — map any provided values to config keys, use defaults for the rest, skip prompting for those keys.
 
 ## Step 2: Detect Installed Harnesses
@@ -42,7 +42,7 @@ Store all detected harnesses. Determine the **current harness** from this skill'
 Skip this step if `claude-code` was not detected in Step 2, or if `--headless` /
 `accept all defaults` was passed (auto-accept as yes).
 
-Silently check: does `.claude/bad-statusline.sh` exist and does `.claude/settings.local.json`
+Silently check: does `.claude/auto-bmad-statusline.sh` exist and does `.claude/settings.local.json`
 have a `statusLine` entry pointing to it? Note `already installed` or `not yet installed`.
 
 Invoke the **`AskUserQuestion`** tool (your only output for this turn — do not proceed to
@@ -51,7 +51,7 @@ Step 4 until the tool returns):
 ```
 questions: [
   {
-    question: "Install BAD session-state capture? Writes rate-limit / context data to a temp file so the coordinator can pause near API limits. [<state-hook-status>]",
+    question: "Install BMAD session-state capture? Writes rate-limit / context data to a temp file so the coordinator can pause near API limits. [<state-hook-status>]",
     header: "State hook",
     multiSelect: false,
     options: [
@@ -73,7 +73,7 @@ Skip this step if `claude-code` was not detected in Step 2, or if `--headless` /
 **Always run on every setup and reconfiguration** — even if already installed. The script is safe to re-run (anti-zombie pattern).
 
 Silently check: does `.claude/settings.local.json` have a `PostToolUse` hook whose `command`
-references `bad-logs`? Note `already installed — will reinstall` or `not yet installed`.
+references `auto-bmad-logs`? Note `already installed — will reinstall` or `not yet installed`.
 
 Invoke the **`AskUserQuestion`** tool (your only output for this turn — do not proceed to
 Step 5 until the tool returns):
@@ -81,7 +81,7 @@ Step 5 until the tool returns):
 ```
 questions: [
   {
-    question: "Install BAD activity log hook? Logs every tool call passively so the watchdog can detect hung subagents. [<activity-hook-status>]",
+    question: "Install BMAD activity log hook? Logs every tool call passively so the watchdog can detect hung subagents. [<activity-hook-status>]",
     header: "Activity hook",
     multiSelect: false,
     options: [
@@ -99,7 +99,7 @@ python3 ./scripts/setup-activity-hook.py \
   --project-root "$(pwd)"
 ```
 The script adds a `PostToolUse` hook to `.claude/settings.local.json` (project-scoped), writes
-one TSV line per tool call to `~/.claude/projects/<encoded-project>/bad-logs/<agent-slug>/<session-id>.log`,
+one TSV line per tool call to `~/.claude/projects/<encoded-project>/auto-bmad-logs/<agent-slug>/<session-id>.log`,
 and uses an anti-zombie pattern so it is safe to re-run.
 
 Proceed to Step 5.
@@ -117,7 +117,7 @@ Otherwise, invoke the **`AskUserQuestion`** tool:
 ```
 questions: [
   {
-    question: "What name should BAD use for you in notifications and reports?",
+    question: "What name should BMAD use for you in notifications and reports?",
     header: "Your name",
     multiSelect: false,
     options: [
@@ -126,7 +126,7 @@ questions: [
     ]
   },
   {
-    question: "What language should BAD use for communication and documents?",
+    question: "What language should BMAD use for communication and documents?",
     header: "Language",
     multiSelect: false,
     options: [
@@ -142,7 +142,7 @@ Record `user_name` → `config.user.yaml`; `communication_language` and
 
 ---
 
-## Step 6: BAD Configuration
+## Step 6: BMAD Configuration
 
 **Default priority** (highest wins): existing config values > `./assets/module.yaml` defaults.
 **If `--headless` / `accept all defaults`:** skip this step entirely and use defaults.
@@ -150,7 +150,7 @@ Record `user_name` → `config.user.yaml`; `communication_language` and
 First, **print all current config values** as a formatted block so the user can review them:
 
 ```
-⚙️ BAD Configuration — current values shown in [brackets]
+⚙️ BMAD Configuration — current values shown in [brackets]
 
 Universal settings:
   max_parallel_stories          [<value>] — Max stories per batch
@@ -204,7 +204,7 @@ Write a temp JSON file with collected answers structured as:
 ```json
 {
   "core": { "user_name": "...", "document_output_language": "...", "output_folder": "..." },
-  "bad": {
+  "auto-bmad": {
     "max_parallel_stories": "3",
     "worktree_base_path": ".worktrees",
     "auto_pr_merge": false,
@@ -235,7 +235,7 @@ python3 ./scripts/merge-config.py \
 python3 ./scripts/merge-help-csv.py \
   --target "{project-root}/_bmad/module-help.csv" \
   --source ./assets/module-help.csv \
-  --module-code bad
+  --module-code auto-bmad
 ```
 
 If either exits non-zero, surface the error and stop.
@@ -254,8 +254,8 @@ Display what was written: config values set, user settings written, help entries
 
 Then display the module greeting:
 
-> BAD is ready. Run /bad to start. Pass KEY=VALUE args to override config at runtime (e.g. /bad MAX_PARALLEL_STORIES=2).
+> BMAD is ready. Run /auto-bmad to start. Pass KEY=VALUE args to override config at runtime (e.g. /auto-bmad MAX_PARALLEL_STORIES=2).
 
 ## Return to Skill
 
-Setup is complete. Resume normal BAD activation — load config from the freshly written files and proceed with whatever the user originally intended.
+Setup is complete. Resume normal BMAD activation — load config from the freshly written files and proceed with whatever the user originally intended.

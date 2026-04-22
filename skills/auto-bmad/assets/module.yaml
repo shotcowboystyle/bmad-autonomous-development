@@ -1,10 +1,10 @@
-code: bad
+code: auto-bmad
 name: "BMad Autonomous Development"
 description: "Orchestrates parallel BMad story implementation pipelines — automatically runs bmad-create-story, bmad-dev-story, bmad-code-review, and commit/PR in batches, driven by the sprint backlog and dependency graph"
 module_version: "1.2.0"
-module_greeting: "BAD is ready. Run /bad to start. Pass KEY=VALUE args to override config at runtime (e.g. /bad MAX_PARALLEL_STORIES=2)."
+module_greeting: "BMAD is ready. Run /auto-bmad to start. Pass KEY=VALUE args to override config at runtime (e.g. /auto-bmad MAX_PARALLEL_STORIES=2)."
 
-header: "BAD — BMad Autonomous Development"
+header: "BMAD — BMad Autonomous Development"
 subheader: "Configure the autonomous development pipeline for this project.\nHarness-specific settings (models, rate limit thresholds, timer support) are detected automatically from your installed harnesses."
 
 max_parallel_stories:
